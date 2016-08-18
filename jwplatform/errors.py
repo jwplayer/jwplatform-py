@@ -135,3 +135,7 @@ class JWPlatformSignatureMissingError(JWPlatformError):
 
 class JWPlatformSignatureInvalidError(JWPlatformError):
     """Signature Invalid"""
+
+
+class JWPlatformRateLimitExceededError(JWPlatformError):
+    """Rate Limit Exceeded"""
