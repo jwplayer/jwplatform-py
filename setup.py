@@ -72,9 +72,9 @@ setup(
         'Programming Language :: Python :: 3.5',
     ],
     keywords=['JW Platform', 'api', 'client'],
-    packages=find_packages(exclude=['docs', 'tests']),
+    packages=find_packages(exclude=['docs', 'tests', 'examples']),
     install_requires=[
-        'requests>=2.10.0'
+        'requests>=2.11.0'
     ],
     tests_require=[
         'tox',
