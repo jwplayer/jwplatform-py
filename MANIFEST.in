@@ -4,3 +4,4 @@ include LICENSE
 include *.txt
 include tox.ini
 recursive-include tests *.py
+prune examples
