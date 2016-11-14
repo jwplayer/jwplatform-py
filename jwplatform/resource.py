@@ -36,11 +36,12 @@ class Resource(object):
         """
         return '/{}'.format(self._name.replace('.', '/'))
 
-    def __call__(self, http_method='GET', **kwargs):
+    def __call__(self, http_method='GET', headers={}, **kwargs):
         """Requests API resource method.
 
         Args:
             http_method (str): HTTP method. Default 'GET'.
+            headers (dict): Additional HTTP headers.
             **kwargs: Keyword arguments specific to the API resource method.
 
         Returns:
@@ -53,6 +54,7 @@ class Resource(object):
         """
 
         url, params = self._client._build_request(self.path, kwargs)
+        self._client._connection.headers.update(headers)
         response = self._client._connection.request(http_method, url, params=params)
 
         try:
