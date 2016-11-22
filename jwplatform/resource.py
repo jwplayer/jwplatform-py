@@ -36,12 +36,19 @@ class Resource(object):
         """
         return '/{}'.format(self._name.replace('.', '/'))
 
-    def __call__(self, http_method='GET', **kwargs):
+    def __call__(self, http_method='GET', request_params=None, **kwargs):
         """Requests API resource method.
 
         Args:
-            http_method (str): HTTP method. Default 'GET'.
-            **kwargs: Keyword arguments specific to the API resource method.
+            http_method (str): HTTP method. Defaults to 'GET' if not specified.
+
+            request_params (dict): Additional parameters that requests.request
+            method accepts. See Request package documentation for details:
+            http://docs.python-requests.org/en/master/api/#requests.request
+            Note: 'method', 'url' and 'params' keys should not be included
+            in the request_params dictionary.
+
+            **kwargs (dict): Keyword arguments specific to the API resource method.
 
         Returns:
             dict: Dictionary with API resource data. If request is successful and
@@ -52,8 +59,17 @@ class Resource(object):
             requests.RequestException: :requests: packages specific exception.
         """
 
+        _request_params = {} if request_params is None else request_params.copy()
+
+        # Remove certain parameters from _request_params dictionary as they are
+        # provided as separate arguments.
+        _request_params.pop('method', None)
+        _request_params.pop('url', None)
+        _request_params.pop('params', None)
+
         url, params = self._client._build_request(self.path, kwargs)
-        response = self._client._connection.request(http_method, url, params=params)
+        response = self._client._connection.request(
+            http_method, url, params=params, **_request_params)
 
         try:
             _response = response.json()
