@@ -21,6 +21,7 @@ def create_video(api_key, api_secret, local_video_path, **kwargs):
     :param kwargs: Arguments conforming to standards found @ https://developer.jwplayer.com/jw-platform/reference/v1/methods/videos/create.html
     :return:
     """
+    filename = os.path.basename(local_video_path)
 
     # Setup API client
     jwplatform_client = jwplatform.Client(api_key, api_secret)
@@ -45,8 +46,9 @@ def create_video(api_key, api_secret, local_video_path, **kwargs):
     query_parameters = response['link']['query']
 
     # HTTP PUT upload using requests
+    headers = {'Content-Disposition': 'attachment; filename="{}"'.format(filename)}
     with open(local_video_path, 'rb') as f:
-        r = requests.put(upload_url, params=query_parameters, data=f)
+        r = requests.put(upload_url, params=query_parameters, headers=headers, data=f)
         logging.info('uploading file {} to url {}'.format(local_video_path, r.url))
         logging.info('upload response: {}'.format(r.text))
         logging.info(r)
