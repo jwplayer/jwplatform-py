@@ -19,7 +19,6 @@ JW_API_SECRET = os.environ.get('JWP_API_SECRET')
 
 class MultipartUploader(object):
     # set default buffer size to 10 MB
-    # the limit for video file size is 25 GB
     BUFFER_SIZE = 1000000
 
     def __init__(self, video_file_path):
@@ -33,7 +32,7 @@ class MultipartUploader(object):
         Initializes the MultipartUploader object for use.  Namely, this method configures the upload
         URL and all relevant parameters and headers for the POST requests to be made.
 
-        :param filename: <string> the name of the video file
+        :param filename: <str> the name of the video file
         """
         try:
             self._jwplatform_client = Client(JW_API_KEY, JW_API_SECRET)
@@ -64,7 +63,7 @@ class MultipartUploader(object):
         The offset used to determine where a chunk begins and ends is updated in the course of
         this method's execution.
 
-        :param chunk: <stream> the raw bytes of data from the video file
+        :param chunk: <byte[]> the raw bytes of data from the video file
         """
 
         begin_chunk = self._offset
