@@ -48,7 +48,7 @@ class MultipartUploader(object):
             self._headers = {'X-Session-ID': self._response['session_id']}
             self._offset = 0
 
-        except JWPlatformError as e:
+        except JWPlatformError:
             logging.error('An error occurred during the uploader setup. Check that your API keys are properly '
                           'set up in your environment, and ensure that the video file path exists.')
             raise
