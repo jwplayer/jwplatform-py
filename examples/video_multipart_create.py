@@ -11,8 +11,8 @@ from jwplatform.errors import JWPlatformError
 
 logging.basicConfig(level=logging.INFO)
 
-JW_API_KEY = os.environ.get('JW_API_KEY')
-JW_API_SECRET = os.environ.get('JW_API_SECRET')
+JW_API_KEY = os.environ.get('JWP_API_KEY')
+JW_API_SECRET = os.environ.get('JWP_API_SECRET')
 
 BYTES_TO_BUFFER = 10000000
 
@@ -98,7 +98,7 @@ def upload_chunk(chunk, upload_parameters):
     upload_parameters['headers'].update({'Content-Length': str((end_chunk - begin_chunk) + 1)})
 
     response = requests.post(
-        upload_parameters['upload_url'],
+        None,
         params=upload_parameters['query_parameters'],
         headers=upload_parameters['headers'],
         data=chunk
