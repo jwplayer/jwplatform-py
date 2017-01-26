@@ -11,8 +11,8 @@ from jwplatform.errors import JWPlatformError
 
 logging.basicConfig(level=logging.INFO)
 
-JW_API_KEY = os.environ.get('JWP_API_KEY')
-JW_API_SECRET = os.environ.get('JWP_API_SECRET')
+JW_API_KEY = os.environ.get('JW_API_KEY')
+JW_API_SECRET = os.environ.get('JW_API_SECRET')
 
 BYTES_TO_BUFFER = 10000000
 
@@ -24,10 +24,17 @@ def run_upload(video_file_path):
 
     :param video_file_path: <str> the absolute path to the video file
     """
-    upload_parameters = dict()
-    upload_parameters['file_path'] = video_file_path
-    upload_parameters['file_size'] = os.stat(video_file_path).st_size
-    upload_parameters['file_name'] = os.path.basename(video_file_path)
+
+    try:
+        upload_parameters = {
+            'file_path': video_file_path,
+            'file_size': os.stat(video_file_path).st_size,
+            'file_name': os.path.basename(video_file_path)
+        }
+
+    except OSError:
+        logging.error('Invalid file path for video file')
+        raise
 
     try:
         # Setup API client
@@ -39,41 +46,39 @@ def run_upload(video_file_path):
             title=upload_parameters['file_name']
         )
 
-        # Construct base url for upload
-        upload_parameters['upload_url'] = '{}://{}{}'.format(
-            jwplatform_video_create_response['link']['protocol'],
-            jwplatform_video_create_response['link']['address'],
-            jwplatform_video_create_response['link']['path']
-        )
-        logging.info('Upload URL to be used: {}'.format(upload_parameters['upload_url']))
-
-        upload_parameters['query_parameters'] = jwplatform_video_create_response['link']['query']
-        upload_parameters['query_parameters']['api_format'] = 'json'
-        upload_parameters['headers'] = {'X-Session-ID': jwplatform_video_create_response['session_id']}
-        # The chunk offset will be updated several times during the course of the upload
-        upload_parameters['chunk_offset'] = 0
-
     except JWPlatformError:
         logging.error('An error occurred during the uploader setup. Check that your API keys are properly '
                       'set up in your environment, and ensure that the video file path exists.')
         raise
 
+    # Construct base url for upload
+    upload_parameters['upload_url'] = '{}://{}{}'.format(
+        jwplatform_video_create_response['link']['protocol'],
+        jwplatform_video_create_response['link']['address'],
+        jwplatform_video_create_response['link']['path']
+    )
+    logging.info('Upload URL to be used: {}'.format(upload_parameters['upload_url']))
+
+    upload_parameters['query_parameters'] = jwplatform_video_create_response['link']['query']
+    upload_parameters['query_parameters']['api_format'] = 'json'
+    upload_parameters['headers'] = {'X-Session-ID': jwplatform_video_create_response['session_id']}
+    # The chunk offset will be updated several times during the course of the upload
+    upload_parameters['chunk_offset'] = 0
+
     # Perform the multipart upload
-    try:
-        with open(upload_parameters['file_path'], 'rb') as file_to_upload:
+    with open(upload_parameters['file_path'], 'rb') as file_to_upload:
+        while True:
             chunk = file_to_upload.read(BYTES_TO_BUFFER)
-            while True:
+            if len(chunk) <= 0:
+                break
+
+            try:
                 upload_chunk(chunk, upload_parameters)
-                chunk = file_to_upload.read(BYTES_TO_BUFFER)
-                if len(chunk) <= 0:
-                    break
 
-    # Log any exceptions that bubbled up
-    except requests.exceptions.RequestException:
-        logging.exception('Error posting data, stopping upload...')
-
-    except IOError:
-        logging.exception('Could not read file to upload.')
+            # Log any exceptions that bubbled up
+            except requests.exceptions.RequestException:
+                logging.error('Error posting data, stopping upload...')
+                raise
 
 
 def upload_chunk(chunk, upload_parameters):
@@ -90,15 +95,19 @@ def upload_chunk(chunk, upload_parameters):
     end_chunk = begin_chunk + len(chunk) - 1
     file_size = upload_parameters['file_size']
     filename = upload_parameters['file_size']
-
     logging.info("begin_chunk / end_chunk = {} / {}".format(begin_chunk, end_chunk))
-    upload_parameters['headers'].update({'X-Content-Range': 'bytes {}-{}/{}'.format(begin_chunk, end_chunk, file_size)})
-    upload_parameters['headers'].update({'Content-Disposition': 'attachment; filename="{}"'.format(filename)})
-    upload_parameters['headers'].update({'Content-Type': 'application/octet-stream'})
-    upload_parameters['headers'].update({'Content-Length': str((end_chunk - begin_chunk) + 1)})
+
+    upload_parameters['headers'].update(
+        {
+            'X-Content-Range': 'bytes {}-{}/{}'.format(begin_chunk, end_chunk, file_size),
+            'Content-Disposition': 'attachment; filename="{}"'.format(filename),
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': str((end_chunk - begin_chunk) + 1)
+        }
+    )
 
     response = requests.post(
-        None,
+        upload_parameters['upload_url'],
         params=upload_parameters['query_parameters'],
         headers=upload_parameters['headers'],
         data=chunk
