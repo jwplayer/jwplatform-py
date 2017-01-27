@@ -25,16 +25,11 @@ def run_upload(video_file_path):
     :param video_file_path: <str> the absolute path to the video file
     """
 
-    try:
-        upload_parameters = {
-            'file_path': video_file_path,
-            'file_size': os.stat(video_file_path).st_size,
-            'file_name': os.path.basename(video_file_path)
-        }
-
-    except OSError:
-        logging.error('Invalid file path for video file')
-        raise
+    upload_parameters = {
+        'file_path': video_file_path,
+        'file_size': os.stat(video_file_path).st_size,
+        'file_name': os.path.basename(video_file_path)
+    }
 
     try:
         # Setup API client
@@ -47,16 +42,13 @@ def run_upload(video_file_path):
         )
 
     except JWPlatformError:
-        logging.error('An error occurred during the uploader setup. Check that your API keys are properly '
-                      'set up in your environment, and ensure that the video file path exists.')
-        raise
+        logging.exception('An error occurred during the uploader setup. Check that your API keys are properly '
+                          'set up in your environment, and ensure that the video file path exists.')
+        return
 
     # Construct base url for upload
-    upload_parameters['upload_url'] = '{}://{}{}'.format(
-        jwplatform_video_create_response['link']['protocol'],
-        jwplatform_video_create_response['link']['address'],
-        jwplatform_video_create_response['link']['path']
-    )
+    upload_parameters['upload_url'] = '{protocol}://{address}{path}'.format(**jwplatform_video_create_response['link'])
+
     logging.info('Upload URL to be used: {}'.format(upload_parameters['upload_url']))
 
     upload_parameters['query_parameters'] = jwplatform_video_create_response['link']['query']
@@ -77,8 +69,8 @@ def run_upload(video_file_path):
 
             # Log any exceptions that bubbled up
             except requests.exceptions.RequestException:
-                logging.error('Error posting data, stopping upload...')
-                raise
+                logging.exception('Error posting data, stopping upload...')
+                break
 
 
 def upload_chunk(chunk, upload_parameters):
@@ -92,6 +84,8 @@ def upload_chunk(chunk, upload_parameters):
     :param upload_parameters: <dict> a collection of all pieces of info needed to upload the video
     """
     begin_chunk = upload_parameters['chunk_offset']
+
+    # The next chunk will begin at (begin_chunk + len(chunk)), so the -1 ensures that the ranges do not overlap
     end_chunk = begin_chunk + len(chunk) - 1
     file_size = upload_parameters['file_size']
     filename = upload_parameters['file_size']
@@ -114,5 +108,5 @@ def upload_chunk(chunk, upload_parameters):
     )
     response.raise_for_status()
 
-    # Note that this places the next range one byte ahead of the old range, as desired
+    # As noted before, the next chunk begins at (begin_chunk + len(chunk))
     upload_parameters['chunk_offset'] = begin_chunk + len(chunk)
