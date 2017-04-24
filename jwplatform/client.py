@@ -11,6 +11,23 @@ import requests
 from . import PY3, __version__
 from .resource import Resource
 
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
+
+
+BACKOFF_FACTOR = 1.7
+RETRY_COUNT = 5
+
+
+class RetryAdapter(HTTPAdapter):
+    """Exponential backoff http adapter.
+    """
+    def __init__(self, *args, **kwargs):
+        super(RetryAdapter, self).__init__(*args, **kwargs)
+        self.max_retries = Retry(total=RETRY_COUNT,
+                                 backoff_factor=BACKOFF_FACTOR)
+
+
 if PY3:
     from urllib.parse import quote
     unicode = lambda s: str(s)
@@ -51,6 +68,7 @@ class Client(object):
         self._agent = kwargs.pop('agent', None)
 
         self._connection = requests.Session()
+        self._connection.mount(self._scheme, RetryAdapter())
 
         self._connection.headers['User-Agent'] = 'python-jwplatform/{}{}'.format(
             __version__, '-{}'.format(self._agent) if self._agent else '')
