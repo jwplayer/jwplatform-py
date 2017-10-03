@@ -35,7 +35,7 @@ def make_csv(api_key, api_secret, path_to_csv=None, result_limit=1000, **kwargs)
     while True:
         try:
             response = jwplatform_client.videos.list(result_limit=result_limit,
-                                                     result_offest=offset,
+                                                     result_offset=offset,
                                                      **kwargs)
         except jwplatform.errors.JWPlatformRateLimitExceededError:
             logging.error("Encountered rate limiting error. Backing off on request time.")
