@@ -50,3 +50,33 @@ def test_custom_initialization():
     assert 'User-Agent' in jwp_client._connection.headers
     assert jwp_client._connection.headers['User-Agent'] == \
         'python-jwplatform/{}-{}'.format(jwplatform.__version__, AGENT)
+
+
+def test_custom_initialization_empty_kwargs():
+
+    KEY = 'api_key'
+    SECRET = 'api_secret'
+    SCHEME = None
+    HOST = None
+    PORT = None
+    API_VERSION = None
+    AGENT = None
+
+    jwp_client = jwplatform.Client(
+        KEY, SECRET,
+        scheme=SCHEME,
+        host=HOST,
+        port=PORT,
+        version=API_VERSION,
+        agent=AGENT)
+
+    assert jwp_client._Client__key == KEY
+    assert jwp_client._Client__secret == SECRET
+    assert jwp_client._scheme == 'https'
+    assert jwp_client._host == 'api.jwplatform.com'
+    assert jwp_client._port == 80
+    assert jwp_client._api_version == 'v1'
+    assert jwp_client._agent is None
+    assert 'User-Agent' in jwp_client._connection.headers
+    assert jwp_client._connection.headers['User-Agent'] == \
+        'python-jwplatform/{}'.format(jwplatform.__version__)
