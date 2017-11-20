@@ -1,6 +1,12 @@
 Changelog
 =========
 
+1.2.1 (2017-11-20)
+------------------
+
+- improved default parameters handling when instantiating client
+- added exponential connection backoff
+
 1.2.0 (2016-11-22)
 ------------------
 

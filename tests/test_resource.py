@@ -9,7 +9,7 @@ import responses
 @responses.activate
 def test_existing_resource():
     url_expr = re.compile(r'https?://api\.test\.tst/v1/videos/show\?.*'
-                          '&video_key=VideoKey.*')
+                          'video_key=VideoKey.*')
     responses.add(
         responses.GET, url_expr,
         status=200,
@@ -35,7 +35,7 @@ def test_existing_resource():
 @responses.activate
 def test_long_resource():
     url_expr = re.compile(r'https?://api\.test\.tst/v1/a/b/c/d/f/e\?.*'
-                          '&abcde=.*')
+                          'abcde=.*')
     responses.add(
         responses.GET, url_expr,
         status=200,
@@ -51,7 +51,7 @@ def test_long_resource():
 @responses.activate
 def test_nonexisting_resource():
     url_expr = re.compile(r'https?://api\.test\.tst/v1/videos/abcd/show\?.*'
-                          '&abcd_key=AbcdKey.*')
+                          'abcd_key=AbcdKey.*')
     responses.add(
         responses.GET, url_expr,
         status=404,
