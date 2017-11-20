@@ -68,19 +68,19 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
     ],
     keywords=['JW Platform', 'api', 'client'],
     packages=find_packages(exclude=['docs', 'tests', 'examples']),
     install_requires=[
-        'requests>=2.12.0'
+        'requests>=2.18.0'
     ],
     tests_require=[
         'tox',
         'pytest',
         'virtualenv',
-        'responses>=0.5.1'
+        'responses>=0.8.1'
     ],
     cmdclass={'test': Tox}
 )
