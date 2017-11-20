@@ -61,11 +61,11 @@ class Client(object):
         self.__key = key
         self.__secret = secret
 
-        self._scheme = kwargs.pop('scheme', 'https')
-        self._host = kwargs.pop('host', 'api.jwplatform.com')
-        self._port = int(kwargs.pop('port', 80))
-        self._api_version = kwargs.pop('version', 'v1')
-        self._agent = kwargs.pop('agent', None)
+        self._scheme = kwargs.get('scheme') or 'https'
+        self._host = kwargs.get('host') or 'api.jwplatform.com'
+        self._port = int(kwargs['port']) if kwargs.get('port') else 80
+        self._api_version = kwargs.get('version') or 'v1'
+        self._agent = kwargs.get('agent')
 
         self._connection = requests.Session()
         self._connection.mount(self._scheme, RetryAdapter())
