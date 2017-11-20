@@ -54,11 +54,13 @@ def make_csv(api_key, api_secret, path_to_csv=None, result_limit=1000, **kwargs)
         timeout_in_seconds = 0
 
         # Add all fetched video objects to our videos list.
-        videos.extend(response.get('videos', []))
+        next_videos = response.get('videos', [])
         last_query_total = response.get('total', 0)
-        if last_query_total < result_limit:  # Condition which defines you've reached the end of the library
+        videos.extend(next_videos)
+        offset += len(next_videos)
+        logging.info("Accumulated {} videos.".format(offset))
+        if offset >= last_query_total:  # Condition which defines you've reached the end of the library
             break
-        offset += last_query_total
 
     # Section for writing video library to csv
     desired_fields = ['key', 'title', 'description', 'tags', 'date', 'link']
