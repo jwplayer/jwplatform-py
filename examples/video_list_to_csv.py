@@ -51,7 +51,7 @@ def make_csv(api_key, api_secret, path_to_csv=None, result_limit=1000, **kwargs)
 
         # Reset retry flow-control variables upon a non successful query (AKA not rate limited)
         retries = 0
-        timeout_in_seconds = 0
+        timeout_in_seconds = 2
 
         # Add all fetched video objects to our videos list.
         next_videos = response.get('videos', [])
