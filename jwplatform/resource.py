@@ -36,7 +36,8 @@ class Resource(object):
         """
         return '/{}'.format(self._name.replace('.', '/'))
 
-    def __call__(self, http_method='GET', request_params=None, **kwargs):
+    def __call__(self, http_method='GET', request_params=None, use_body=None,
+                 **kwargs):
         """Requests API resource method.
 
         Args:
@@ -45,8 +46,13 @@ class Resource(object):
             request_params (dict): Additional parameters that requests.request
             method accepts. See Request package documentation for details:
             http://docs.python-requests.org/en/master/api/#requests.request
-            Note: 'method', 'url' and 'params' keys should not be included
-            in the request_params dictionary.
+            Note: 'method', 'url', 'params' and 'data' keys should not be
+            included in the request_params dictionary.
+
+            use_body (bool): If True, pass parameters in the request body,
+            otherwise pass parameters via the URL query string. For the POST
+            methods, this defaults to True. For other methods it defaults to
+            False.
 
             **kwargs (dict): Keyword arguments specific to the API resource method.
 
@@ -66,10 +72,22 @@ class Resource(object):
         _request_params.pop('method', None)
         _request_params.pop('url', None)
         _request_params.pop('params', None)
+        _request_params.pop('data', None)
+
+        # Whether we default to using the request body to pass parameters or not
+        # depends on the method. Respect the value of use_body which was passed
+        # above the default.
+        use_body = use_body if use_body is not None else http_method == 'POST'
 
         url, params = self._client._build_request(self.path, kwargs)
+
+        if use_body:
+            _request_params['data'] = params
+        else:
+            _request_params['params'] = params
+
         response = self._client._connection.request(
-            http_method, url, params=params, **_request_params)
+            http_method, url, **_request_params)
 
         try:
             _response = response.json()
