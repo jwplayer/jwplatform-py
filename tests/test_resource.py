@@ -5,6 +5,8 @@ import pytest
 import jwplatform
 import responses
 
+from requests.exceptions import ConnectionError
+
 
 @responses.activate
 def test_existing_resource():
@@ -98,3 +100,35 @@ def test_post_existing_resource():
     resp = jwp_client.a.b.c.d(http_method='POST', abcde=123)
 
     assert resp['status'] == 'ok'
+
+
+@responses.activate
+def test_post_parameters_in_url():
+    url_expr = re.compile(r'https?://api\.test\.tst/v1/a/b/c/d\?.*')
+    responses.add(
+        responses.POST, url_expr,
+        status=200,
+        content_type='application/json',
+        body='{"status": "ok"}')
+
+    jwp_client = jwplatform.Client('api_key', 'api_secret', host='api.test.tst')
+    resp = jwp_client.a.b.c.d(http_method='POST', use_body=False, _post='true', _body='false')
+
+    assert resp['status'] == 'ok'
+
+
+@responses.activate
+def test_post_parameters_in_body():
+    url_expr = re.compile(r'https?://api\.test\.tst/v1/a/b/c/d\?.*')
+    responses.add(
+        responses.POST, url_expr,
+        status=200,
+        content_type='application/json',
+        body='{"status": "ok"}')
+
+    jwp_client = jwplatform.Client('api_key', 'api_secret', host='api.test.tst')
+
+    # ConnectionError is expected as request parameters are included in the
+    # request body for POST request by default.
+    with pytest.raises(ConnectionError):
+        resp = jwp_client.a.b.c.d(http_method='POST', post='true', _body='none')
