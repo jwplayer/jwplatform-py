@@ -80,7 +80,7 @@ setup(
         'tox',
         'pytest',
         'virtualenv',
-        'responses>=0.8.1'
+        'responses>=0.9.0'
     ],
     cmdclass={'test': Tox}
 )
