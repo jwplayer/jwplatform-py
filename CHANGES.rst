@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.2.2 (2018-04-10)
+------------------
+
+- parameters are now included in the request body by default for POST requests
+
 1.2.1 (2017-11-20)
 ------------------
 
