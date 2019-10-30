@@ -11,7 +11,7 @@ JW Platform API library can be installed using pip:
 
 .. code-block:: bash
 
-  $ pip install jwplatform
+  pip install jwplatform
 
 Library has `Requests`_ package as dependency. It will be installed automatically when installing using ``pip``.
 
@@ -22,19 +22,19 @@ Import ``jwplatform`` library:
 
 .. code-block:: python
 
-  >>> import jwplatform
+  import jwplatform
 
 Initialize ``jwplatform`` client instance (API key and secrets can be found in the JW Platform dashboard under the `account` tab):
 
 .. code-block:: python
 
-  >>> jwplatform_client = jwplatform.Client('API_KEY', 'API_SECRET')
+  jwplatform_client = jwplatform.Client('API_KEY', 'API_SECRET')
 
 Make an API request. For this example `/videos/show`_ API resource is used:
 
 .. code-block:: python
 
-  >>> response = jwplatform_client.videos.show(video_key='yYul4DRz')
+  response = jwplatform_client.videos.show(video_key='VIDEO_KEY')
 
 If API request is successful, ``response`` variable will contain dictionary with information related to the response and the actual video data in ``response['video']``:
 
@@ -69,11 +69,10 @@ JW Platform API library will raise exception inherited from ``jwplatform.errors.
 
 .. code-block:: python
 
-  >>> try:
-  ...     jwplatform_client.media.show()
-  ... except jwplatform.errors.JWPlatformNotFoundError as err:
-  ...     print(err.message)
-  API method `/media/show` not found
+  try:
+      jwplatform_client.media.show()
+  except jwplatform.errors.JWPlatformNotFoundError as err:
+      print(err.message)  # API method `/media/show` not found
 
 For the complete list of available exception see `jwplatform/errors.py`_ file.
 
