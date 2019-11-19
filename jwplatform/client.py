@@ -45,7 +45,7 @@ class Client(object):
         key (str): API User key
         secret (str): API User secret
         scheme (str, optional): Connection scheme: 'http' or 'https'.
-                                Default is 'http'.
+                                Default is 'https'.
         host (str, optional): API server host name.
                               Default is 'api.jwplatform.com'.
         port (int, optional): API server port. Default is 80.
