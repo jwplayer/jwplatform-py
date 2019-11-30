@@ -48,7 +48,7 @@ class Client(object):
                                 Default is 'https'.
         host (str, optional): API server host name.
                               Default is 'api.jwplatform.com'.
-        port (int, optional): API server port. Default is 80.
+        port (int, optional): API server port. Default is 443.
         version (str, optional): Version of the API to use.
                                  Default is 'v1'.
         agent (str, optional): API client agent identification string.
@@ -63,7 +63,7 @@ class Client(object):
 
         self._scheme = kwargs.get('scheme') or 'https'
         self._host = kwargs.get('host') or 'api.jwplatform.com'
-        self._port = int(kwargs['port']) if kwargs.get('port') else 80
+        self._port = int(kwargs['port']) if kwargs.get('port') else 443
         self._api_version = kwargs.get('version') or 'v1'
         self._agent = kwargs.get('agent')
 
