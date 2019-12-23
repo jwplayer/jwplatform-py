@@ -14,7 +14,7 @@ def test_default_initialization():
     assert jwp_client._Client__secret == SECRET
     assert jwp_client._scheme == 'https'
     assert jwp_client._host == 'api.jwplatform.com'
-    assert jwp_client._port == 80
+    assert jwp_client._port is None
     assert jwp_client._api_version == 'v1'
     assert jwp_client._agent is None
     assert 'User-Agent' in jwp_client._connection.headers
@@ -74,7 +74,7 @@ def test_custom_initialization_empty_kwargs():
     assert jwp_client._Client__secret == SECRET
     assert jwp_client._scheme == 'https'
     assert jwp_client._host == 'api.jwplatform.com'
-    assert jwp_client._port == 80
+    assert jwp_client._port is None
     assert jwp_client._api_version == 'v1'
     assert jwp_client._agent is None
     assert 'User-Agent' in jwp_client._connection.headers

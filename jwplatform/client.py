@@ -1,41 +1,31 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-
 import time
 import random
 import hashlib
+from urllib.parse import quote
+from typing import Dict, Optional
 
 import requests
-
-from . import PY3, __version__
-from .resource import Resource
-
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
+from jwplatform import __version__
+from jwplatform.resource import Resource
 
 BACKOFF_FACTOR = 1.7
 RETRY_COUNT = 5
 
 
 class RetryAdapter(HTTPAdapter):
-    """Exponential backoff http adapter.
-    """
+    """Exponential backoff http adapter."""
     def __init__(self, *args, **kwargs):
         super(RetryAdapter, self).__init__(*args, **kwargs)
         self.max_retries = Retry(total=RETRY_COUNT,
                                  backoff_factor=BACKOFF_FACTOR)
 
 
-if PY3:
-    from urllib.parse import quote
-    unicode = lambda s: str(s)
-else:
-    from urllib import quote
-
-
-class Client(object):
+class Client:
     """JW Platform API client.
 
     An API client for the JW Platform. For the API documentation see:
@@ -57,13 +47,13 @@ class Client(object):
         >>> jwplatform_client = jwplatform.Client('API_KEY', 'API_SECRET')
     """
 
-    def __init__(self, key, secret, *args, **kwargs):
+    def __init__(self, key: str, secret: str, *args, **kwargs):
         self.__key = key
         self.__secret = secret
 
         self._scheme = kwargs.get('scheme') or 'https'
         self._host = kwargs.get('host') or 'api.jwplatform.com'
-        self._port = int(kwargs['port']) if kwargs.get('port') else 443
+        self._port = int(kwargs['port']) if kwargs.get('port') else None
         self._api_version = kwargs.get('version') or 'v1'
         self._agent = kwargs.get('agent')
 
@@ -76,13 +66,13 @@ class Client(object):
     def __getattr__(self, resource_name):
         return Resource(resource_name, self)
 
-    def _build_request(self, path, params=None):
-        """Build API request"""
+    def _build_request(self, path: str, params: Optional[Dict] = None):
+        """Build API request."""
 
         _url = '{scheme}://{host}{port}/{version}{path}'.format(
             scheme=self._scheme,
             host=self._host,
-            port=':{}'.format(self._port) if self._port != 80 else '',
+            port=':{}'.format(self._port) if self._port else '',
             version=self._api_version,
             path=path)
 
@@ -101,8 +91,8 @@ class Client(object):
 
         # Construct Signature Base String
         sbs = '&'.join(['{}={}'.format(
-            quote((unicode(key).encode('utf-8')), safe='~'),
-            quote((unicode(value).encode('utf-8')), safe='~')
+            quote(str(key).encode('utf-8'), safe='~'),
+            quote(str(value).encode('utf-8'), safe='~')
         ) for key, value in sorted(_params.items())])
 
         # Add signature to the _params dict

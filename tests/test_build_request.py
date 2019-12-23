@@ -4,11 +4,7 @@ import time
 import hashlib
 import jwplatform
 
-if jwplatform.PY3:
-    from urllib.parse import quote
-    unicode = lambda s: str(s)
-else:
-    from urllib import quote
+from urllib.parse import quote
 
 
 def test_required_parameters_present():
@@ -104,8 +100,8 @@ def test_signature():
     request_params['api_kit'] = params['api_kit']
 
     base_str = '&'.join(['{}={}'.format(
-        quote((unicode(key).encode('utf-8')), safe='~'),
-        quote((unicode(value).encode('utf-8')), safe='~')
+        quote(str(key).encode('utf-8'), safe='~'),
+        quote(str(value).encode('utf-8'), safe='~')
     ) for key, value in sorted(request_params.items())])
 
     assert params['api_signature'] == hashlib.sha1(

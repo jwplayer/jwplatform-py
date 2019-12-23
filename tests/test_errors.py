@@ -2,9 +2,11 @@
 
 import re
 import json
-import pytest
-import jwplatform
+
 import responses
+import pytest
+
+import jwplatform
 
 
 SUPPORTED_ERROR_CASES = [
