@@ -2,12 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import re
-import sys
 from os import path
 from codecs import open
 
 from setuptools import setup, find_packages
-from setuptools.command.test import test as TestCommand
 
 here = path.abspath(path.dirname(__file__))
 
@@ -43,10 +41,13 @@ setup(
         'Intended Audience :: Developers',
         'Topic :: Software Development :: Libraries :: Python Modules',
         'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3 :: Only',
     ],
     keywords=['JW Platform', 'api', 'client', 'JW Player'],
     packages=find_packages(exclude=['docs', 'tests', 'examples']),
@@ -61,7 +62,6 @@ setup(
     tests_require=[
         'pytest',
         'pytest-cov',
-        'virtualenv',
         'responses>=0.9.0'
     ],
 )
