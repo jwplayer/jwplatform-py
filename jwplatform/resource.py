@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
+from jwplatform import client
+from jwplatform import errors
 
-from . import errors
 
-
-class Resource(object):
+class Resource:
     """JW Platform API resource.
 
     Provides access to the JW Platform API resources using dot notation.
@@ -20,7 +19,7 @@ class Resource(object):
         >>> track = jwplatform_client.videos.tracks.show(track_key='abcd1234')
     """
 
-    def __init__(self, name, client):
+    def __init__(self, name: str, client):
         self._name = name
         self._client = client
 
