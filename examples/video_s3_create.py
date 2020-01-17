@@ -18,7 +18,7 @@ def create_video(api_key, api_secret, local_video_path, **kwargs):
     :param api_key: <string> JWPlatform api-key
     :param api_secret: <string> JWPlatform shared-secret
     :param local_video_path: <string> Path to media on local machine.
-    :param kwargs: Arguments conforming to standards found @ https://developer.jwplayer.com/jw-platform/reference/v1/methods/videos/create.html
+    :param kwargs: Arguments conforming to standards found @ https://developer.jwplayer.com/jwplayer/reference#post_videos-create
     :return:
     """
     filename = os.path.basename(local_video_path)
