@@ -100,3 +100,6 @@ class Client:
             '{}{}'.format(sbs, self.__secret).encode('utf-8')).hexdigest()
 
         return _url, _params
+
+    def __del__(self):
+        self._connection.close()
