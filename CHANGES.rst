@@ -1,6 +1,12 @@
 Changelog
 =========
 
+2.0.0 (TBD)
+-----------
+
+- Added support for JWPlatform API v2
+- All existing v1 API functionality has been moved to the jwplatform.v1 submodule (from jwplatform).
+
 1.3.0 (2019-12-22)
 ------------------
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from jwplatform import client
-from jwplatform import errors
+from jwplatform.v1 import client
+from jwplatform.v1 import errors
 
 
 class Resource:

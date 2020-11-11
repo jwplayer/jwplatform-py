@@ -24,60 +24,42 @@ Import ``jwplatform`` library:
 
   import jwplatform
 
-Initialize ``jwplatform`` client instance (API key and secrets can be found in the JW Platform dashboard under the `account` tab):
+Initialize ``jwplatform`` client instance. API keys can be created in the JW Platform dashboard on the API Credentials page. Copy the secret value to use here.
 
 .. code-block:: python
 
-  jwplatform_client = jwplatform.Client('API_KEY', 'API_SECRET')
+  jwplatform_client = jwplatform.client.Client('API_SECRET')
 
-Make an API request. For this example `/videos/show`_ API resource is used:
-
-.. code-block:: python
-
-  response = jwplatform_client.videos.show(video_key='VIDEO_KEY')
-
-If API request is successful, ``response`` variable will contain dictionary with information related to the response and the actual video data in ``response['video']``:
+Make an API request:
 
 .. code-block:: python
 
-  >>> response
-  {'rate_limit': {'limit': 50, 'remaining': 47, 'reset': 1469105100},
-   'status': 'ok',
-   'video': {'author': None,
-    'custom': {'param1': 'value 1',
-     'param2': 'value 2'},
-    'date': 1225962900,
-    'description': None,
-    'duration': '12.0',
-    'error': None,
-    'expires_date': 1459908560,
-    'key': 'yYul4DRz',
-    'link': 'http://www.jwplatform.com',
-    'md5': 'b2d7312bd39cc60e9facc8ed3cbb6418',
-    'mediatype': 'video',
-    'size': '29478520',
-    'sourceformat': None,
-    'sourcetype': 'file',
-    'sourceurl': None,
-    'status': 'ready',
-    'tags': 'new, video',
-    'title': 'New test video',
-    'upload_session_id': None,
-    'views': 123}}
+  response = jwplatform_client.Media.get(site_id='SITE_ID', media_id='MEDIA_ID')
 
-JW Platform API library will raise exception inherited from ``jwplatform.errors.JWPlatformError`` if ``response['status']`` set to ``error``. For example, there is no ``/media/show`` API resource. Requesting it will raise ``jwplatform.errors.JWPlatformNotFoundError``:
+If API request is successful, ``response`` variable will contain dictionary with information related to the response and the actual video data in ``response.json_body``:
+
+.. code-block:: python
+
+  >>> response.json_body
+  {"id": "Ny05CEfj",
+   "type": "media",
+   "created": "2019-09-25T15:29:11.042095+00:00",
+   "last_modified": "2019-09-25T15:29:11.042095+00:00",
+   "metadata": {
+     "title": "Example video",
+     "tags": ["new", "video"]
+   }}
+
+JW Platform API library will raise exception inherited from ``jwplatform.errors.APIError`` if anything goes wrong. For example, if there is no media with the specified media_id requesting it will raise ``jwplatform.errors.NotFoundError``:
 
 .. code-block:: python
 
   try:
-      jwplatform_client.media.show()
-  except jwplatform.errors.JWPlatformNotFoundError as err:
-      print(err.message)  # API method `/media/show` not found
+      jwplatform_client.Media.get(site_id='SITE_ID', media_id='BAD_MEDIA_ID')
+  except jwplatform.errors.NotFoundError as err:
+      print(err)
 
 For the complete list of available exception see `jwplatform/errors.py`_ file.
-
-In addition to raising ``jwplatform.errors.JWPlatformError`` exceptions, JW Platform API library will
-re-raise `requests.exceptions.RequestException`_ exceptions from the `Requests`_ package.
 
 Source Code
 -----------
@@ -90,10 +72,8 @@ License
 JW Platform API library is distributed under the `MIT license`_.
 
 .. _`JW Platform`: https://www.jwplayer.com/products/jwplatform/
-.. _`JW Player Developer`: https://developer.jwplayer.com/jw-platform/reference/v1/
-.. _`/videos/show`: https://developer.jwplayer.com/jw-platform/reference/v1/methods/videos/show.html
+.. _`JW Player Developer Reference`: https://developer.jwplayer.com/jwplayer/reference#introduction-to-api-v2
 .. _`jwplatform/errors.py`: https://github.com/jwplayer/jwplatform-py/blob/master/jwplatform/errors.py
 .. _`MIT license`: https://github.com/jwplayer/jwplatform-py/blob/master/LICENSE
 .. _`GitHub`: https://github.com/jwplayer/jwplatform-py
 .. _`Requests`: https://pypi.python.org/pypi/requests/
-.. _`requests.exceptions.RequestException`: http://docs.python-requests.org/en/master/api/#exceptions

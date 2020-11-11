@@ -10,24 +10,22 @@ import jwplatform
 logging.basicConfig(level=logging.INFO)
 
 
-def update_video(api_key, api_secret, video_key, **kwargs):
+def update_video(secret, site_id, media_id, body):
     """
     Function which allows you to update a video
 
-    :param api_key: <string> JWPlatform api-key
-    :param api_secret: <string> JWPlatform shared-secret
-    :param video_key: <string> Video's object ID. Can be found within JWPlayer Dashboard.
-    :param kwargs: Arguments conforming to standards found @ https://developer.jwplayer.com/jw-platform/reference/v1/methods/videos/update.html
+    :param secret: <string> Secret value for your JWPlatform API key
+    :param site_id: <string> ID of a JWPlatform site
+    :param media_id: <string> Video's object ID. Can be found within JWPlayer Dashboard.
+    :param kwargs: Arguments conforming to standards found @ https://developer.jwplayer.com/jwplayer/reference#patch_v2-sites-site-id-media-media-id-
     :return:
     """
     # Setup API client
-    jwplatform_client = jwplatform.Client(api_key, api_secret)
+    jwplatform_client = jwplatform.client.JWPlatformClient(secret)
     logging.info("Updating Video")
     try:
-        response = jwplatform_client.videos.update(
-            video_key=video_key,
-            **kwargs)
-    except jwplatform.errors.JWPlatformError as e:
+        response = jwplatform_client.Media.update(site_id=site_id, media_id=media_id, body=body)
+    except jwplatform.errors.APIError as e:
         logging.error("Encountered an error updating the video\n{}".format(e))
-        sys.exit(e.message)
-    logging.info(response)
+        sys.exit(str(e))
+    logging.info(response.json_body)

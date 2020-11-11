@@ -8,7 +8,7 @@ def test_default_initialization():
     KEY = 'api_key'
     SECRET = 'api_secret'
 
-    jwp_client = jwplatform.Client(KEY, SECRET)
+    jwp_client = jwplatform.v1.Client(KEY, SECRET)
 
     assert jwp_client._Client__key == KEY
     assert jwp_client._Client__secret == SECRET
@@ -32,7 +32,7 @@ def test_custom_initialization():
     API_VERSION = 'v7'
     AGENT = 'test_agent'
 
-    jwp_client = jwplatform.Client(
+    jwp_client = jwplatform.v1.Client(
         KEY, SECRET,
         scheme=SCHEME,
         host=HOST,
@@ -62,7 +62,7 @@ def test_custom_initialization_empty_kwargs():
     API_VERSION = None
     AGENT = None
 
-    jwp_client = jwplatform.Client(
+    jwp_client = jwplatform.v1.Client(
         KEY, SECRET,
         scheme=SCHEME,
         host=HOST,

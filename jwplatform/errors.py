@@ -1,141 +1,110 @@
 # -*- coding: utf-8 -*-
+from collections import defaultdict
+
+from jwplatform.response import APIResponse
 
 
-class JWPlatformError(Exception):
-    def __init__(self, message: str):
-        self.message = message
+class APIError(APIResponse, Exception):
+    """
+    Class returned when an error happens while JWPlatformClient is used to make an API request.
+    """
+    def __init__(self, response):
+        super().__init__(response)
+        self.errors = None
+
+        if self.json_body is not None and isinstance(self.json_body, dict) and "errors" in self.json_body and isinstance(self.json_body["errors"], list):
+            self.errors = self.json_body["errors"]
+            self._error_code_map = defaultdict(list)
+
+            if len(self.errors) > 0:
+                for error in self.errors:
+                    if isinstance(error, dict) and "code" in error and "description" in error:
+                        self._error_code_map[error["code"]].append(error)
+
+    @classmethod
+    def from_response(cls, response):
+        if response.status in ERROR_MAP:
+            return ERROR_MAP[response.status](response)
+        if response.status >= 400 and response.status <= 499:
+            return ClientError(response)
+        if response.status >= 500 and response.status <= 599:
+            return ServerError(response)
+        return UnexpectedStatusError(response)
+
+    def has_error_code(self, code):
+        if self.errors is None:
+            return False
+        return code in self._error_code_map
+
+    def get_errors_by_code(self, code):
+        if self.errors is None:
+            return []
+        return self._error_code_map[code]
 
     def __str__(self):
-        return repr(self.message)
+        msg = "JWPlatform API Error:\n\n"
+        for error in self.errors:
+            msg += "{code}: {desc}\n".format(code=error["code"], desc=error["description"])
+        return msg
 
 
-class JWPlatformUnknownError(JWPlatformError):
-    """An Unknown Error occurred"""
+class ClientError(APIError):
+    pass
 
+class ServerError(APIError):
+    pass
 
-class JWPlatformNotFoundError(JWPlatformError):
-    """Not Found"""
+class UnexpectedStatusError(ServerError):
+    pass
 
+class InternalServerError(ServerError):
+    pass
 
-class JWPlatformNoMethodError(JWPlatformError):
-    """No Method Specified"""
+class BadGatewayError(ServerError):
+    pass
 
+class ServiceUnavailableError(ServerError):
+    pass
 
-class JWPlatformNotImplementedError(JWPlatformError):
-    """Method Not Implemented"""
+class GatewayTimeoutError(ServerError):
+    pass
 
+class BadRequestError(ClientError):
+    pass
 
-class JWPlatformNotSupportedError(JWPlatformError):
-    """Method or parameter not supported"""
+class UnauthorizedError(ClientError):
+    pass
 
+class ForbiddenError(ClientError):
+    pass
 
-class JWPlatformCallFailedError(JWPlatformError):
-    """Call Failed"""
+class NotFoundError(ClientError):
+    pass
 
+class MethodNotAllowedError(ClientError):
+    pass
 
-class JWPlatformCallUnavailableError(JWPlatformError):
-    """Call Unavailable"""
+class ConflictError(ClientError):
+    pass
 
+class UnprocessableEntityError(ClientError):
+    pass
 
-class JWPlatformCallInvalidError(JWPlatformError):
-    """Call Invalid"""
+class TooManyRequestsError(ClientError):
+    pass
 
 
-class JWPlatformParameterMissingError(JWPlatformError):
-    """Missing Parameter"""
-
-
-class JWPlatformParameterEmptyError(JWPlatformError):
-    """Empty Parameter"""
-
-
-class JWPlatformParameterEncodingError(JWPlatformError):
-    """Parameter Encoding Error"""
-
-
-class JWPlatformParameterInvalidError(JWPlatformError):
-    """Invalid Parameter"""
-
-
-class JWPlatformPreconditionFailedError(JWPlatformError):
-    """Precondition Failed"""
-
-
-class JWPlatformItemAlreadyExistsError(JWPlatformError):
-    """Item Already Exists"""
-
-
-class JWPlatformPermissionDeniedError(JWPlatformError):
-    """Permission Denied"""
-
-
-class JWPlatformDatabaseError(JWPlatformError):
-    """Database Error"""
-
-
-class JWPlatformIntegrityError(JWPlatformError):
-    """Integrity Error"""
-
-
-class JWPlatformDigestMissingError(JWPlatformError):
-    """Digest Missing"""
-
-
-class JWPlatformDigestInvalidError(JWPlatformError):
-    """Digest Invalid"""
-
-
-class JWPlatformFileUploadFailedError(JWPlatformError):
-    """File Upload Failed"""
-
-
-class JWPlatformFileSizeMissingError(JWPlatformError):
-    """File Size Missing"""
-
-
-class JWPlatformFileSizeInvalidError(JWPlatformError):
-    """File Size Invalid"""
-
-
-class JWPlatformInternalError(JWPlatformError):
-    """Internal Error"""
-
-
-class JWPlatformApiKeyMissingError(JWPlatformError):
-    """User Key Missing"""
-
-
-class JWPlatformApiKeyInvalidError(JWPlatformError):
-    """User Key Invalid"""
-
-
-class JWPlatformTimestampMissingError(JWPlatformError):
-    """Timestamp Missing"""
-
-
-class JWPlatformTimestampInvalidError(JWPlatformError):
-    """Timestamp Invalid"""
-
-
-class JWPlatformTimestampExpiredError(JWPlatformError):
-    """Timestamp Expired"""
-
-
-class JWPlatformNonceMissingError(JWPlatformError):
-    """Nonce Missing"""
-
-
-class JWPlatformNonceInvalidError(JWPlatformError):
-    """Nonce Invalid"""
-
-
-class JWPlatformSignatureMissingError(JWPlatformError):
-    """Signature Missing"""
-
-
-class JWPlatformSignatureInvalidError(JWPlatformError):
-    """Signature Invalid"""
-
-
-class JWPlatformRateLimitExceededError(JWPlatformError):
-    """Rate Limit Exceeded"""
+ERROR_MAP = {
+    500: InternalServerError,
+    502: BadGatewayError,
+    503: ServiceUnavailableError,
+    504: GatewayTimeoutError,
+    400: BadRequestError,
+    401: UnauthorizedError,
+    403: ForbiddenError,
+    404: NotFoundError,
+    405: MethodNotAllowedError,
+    409: ConflictError,
+    422: UnprocessableEntityError,
+    429: TooManyRequestsError,
+}

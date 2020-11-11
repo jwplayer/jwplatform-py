@@ -12,7 +12,7 @@ def test_required_parameters_present():
     KEY = 'api_key'
     SECRET = 'api_secret'
 
-    jwp_client = jwplatform.Client(KEY, SECRET)
+    jwp_client = jwplatform.v1.Client(KEY, SECRET)
 
     url, params = jwp_client._build_request('')
 
@@ -48,7 +48,7 @@ def test_request_url():
     AGENT = 'test_request_url'
     PATH = '/a/b/c/d'
 
-    jwp_client = jwplatform.Client(
+    jwp_client = jwplatform.v1.Client(
         KEY, SECRET,
         scheme=SCHEME,
         host=HOST,
@@ -81,7 +81,7 @@ def test_signature():
         'n0': None
     }
 
-    jwp_client = jwplatform.Client(KEY, SECRET)
+    jwp_client = jwplatform.v1.Client(KEY, SECRET)
 
     url, params = jwp_client._build_request(PATH, request_params)
 
