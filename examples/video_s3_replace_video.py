@@ -11,47 +11,37 @@ import requests
 logging.basicConfig(level=logging.INFO)
 
 
-def replace_video(api_key, api_secret, local_video_path, video_key, **kwargs):
+def replace_video(secret, site_id, local_video_path, media_id):
     """
     Function which allows to replace the content of an EXISTING video object.
 
-    :param api_key: <string> JWPlatform api-key
-    :param api_secret: <string> JWPlatform shared-secret
+    :param secret: <string> Secret value for your JWPlatform API key
+    :param site_id: <string> ID of a JWPlatform site
     :param local_video_path: <string> Path to media on local machine.
-    :param video_key: <string> Video's object ID. Can be found within JWPlayer Dashboard.
-    :param kwargs: Arguments conforming to standards found @ https://developer.jwplayer.com/jw-platform/reference/v1/methods/videos/create.html
+    :param media_id: <string> Video's object ID. Can be found within JWPlayer Dashboard.
     :return:
     """
     filename = os.path.basename(local_video_path)
 
     # Setup API client
-    jwplatform_client = jwplatform.Client(api_key, api_secret)
+    jwplatform_client = jwplatform.client.JWPlatformClient(secret)
     logging.info("Updating Video")
     try:
-        response = jwplatform_client.videos.update(
-            video_key=video_key,
-            upload_method='s3',
-            update_file='True',
-            **kwargs)
-    except jwplatform.errors.JWPlatformError as e:
+        response = jwplatform_client.media.reupload(site_id=site_id, media_id=media_id, body={
+            "upload": {
+                 "method": "s3",
+            },
+        })
+    except jwplatform.errors.APIError as e:
         logging.error("Encountered an error updating the video\n{}".format(e))
-        sys.exit(e.message)
-    logging.info(response)
-
-    # Construct base url for upload
-    upload_url = '{}://{}{}'.format(
-        response['link']['protocol'],
-        response['link']['address'],
-        response['link']['path']
-    )
-
-    # Query parameters for the upload
-    query_parameters = response['link']['query']
+        sys.exit(str(e))
+    logging.info(response.json_body)
 
     # HTTP PUT upload using requests
+    upload_url = response.json_body["upload_link"]
     headers = {'Content-Disposition': 'attachment; filename="{}"'.format(filename)}
     with open(local_video_path, 'rb') as f:
-        r = requests.put(upload_url, params=query_parameters, headers=headers, data=f)
+        r = requests.put(upload_url, headers=headers, data=f)
         logging.info('uploading file {} to url {}'.format(local_video_path, r.url))
         logging.info('upload response: {}'.format(r.text))
         logging.info(r)

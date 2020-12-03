@@ -2,7 +2,7 @@
 
 import re
 import pytest
-import jwplatform
+import jwplatform.v1
 import responses
 
 from requests.exceptions import ConnectionError
@@ -26,7 +26,7 @@ def test_existing_resource():
              '"md5": "653bc15b6cba7319c2df9b5cf869b5b8", "sourcetype": "file", '
              '"size": "904237686"}}')
 
-    jwp_client = jwplatform.Client('api_key', 'api_secret', host='api.test.tst')
+    jwp_client = jwplatform.v1.Client('api_key', 'api_secret', host='api.test.tst')
     resp = jwp_client.videos.show(video_key='VideoKey')
 
     assert resp['status'] == 'ok'
@@ -44,7 +44,7 @@ def test_long_resource():
         content_type='application/json',
         body='{"status": "ok"}')
 
-    jwp_client = jwplatform.Client('api_key', 'api_secret', host='api.test.tst')
+    jwp_client = jwplatform.v1.Client('api_key', 'api_secret', host='api.test.tst')
     resp = jwp_client.a.b.c.d.f.e(abcde='')
 
     assert resp['status'] == 'ok'
@@ -62,9 +62,9 @@ def test_nonexisting_resource():
              '"message": "API method `/videos/abcd/show` not found", '
              '"code": "NotFound", "title": "Not Found"}')
 
-    jwp_client = jwplatform.Client('api_key', 'api_secret', host='api.test.tst')
+    jwp_client = jwplatform.v1.Client('api_key', 'api_secret', host='api.test.tst')
 
-    with pytest.raises(jwplatform.errors.JWPlatformNotFoundError) as err:
+    with pytest.raises(jwplatform.v1.errors.JWPlatformNotFoundError) as err:
         jwp_client.videos.abcd.show(abcd_key='AbcdKey')
 
     assert err.value.message == 'API method `/videos/abcd/show` not found'
@@ -79,9 +79,9 @@ def test_long_resource():
         content_type='application/json',
         body='({"json": "error"})')
 
-    jwp_client = jwplatform.Client('api_key', 'api_secret', host='api.test.tst')
+    jwp_client = jwplatform.v1.Client('api_key', 'api_secret', host='api.test.tst')
 
-    with pytest.raises(jwplatform.errors.JWPlatformUnknownError) as err:
+    with pytest.raises(jwplatform.v1.errors.JWPlatformUnknownError) as err:
         jwp_client.json.error()
 
     assert err.value.message == 'Not a valid JSON string: ({"json": "error"})'
@@ -96,7 +96,7 @@ def test_post_existing_resource():
         content_type='application/json',
         body='{"status": "ok"}')
 
-    jwp_client = jwplatform.Client('api_key', 'api_secret', host='api.test.tst')
+    jwp_client = jwplatform.v1.Client('api_key', 'api_secret', host='api.test.tst')
     resp = jwp_client.a.b.c.d(http_method='POST', abcde=123)
 
     assert resp['status'] == 'ok'
@@ -111,7 +111,7 @@ def test_post_parameters_in_url():
         content_type='application/json',
         body='{"status": "ok"}')
 
-    jwp_client = jwplatform.Client('api_key', 'api_secret', host='api.test.tst')
+    jwp_client = jwplatform.v1.Client('api_key', 'api_secret', host='api.test.tst')
     resp = jwp_client.a.b.c.d(http_method='POST', use_body=False, _post='true', _body='false')
 
     assert resp['status'] == 'ok'
@@ -126,7 +126,7 @@ def test_post_parameters_in_body():
         content_type='application/json',
         body='{"status": "ok"}')
 
-    jwp_client = jwplatform.Client('api_key', 'api_secret', host='api.test.tst')
+    jwp_client = jwplatform.v1.Client('api_key', 'api_secret', host='api.test.tst')
 
     # ConnectionError is expected as request parameters are included in the
     # request body for POST request by default.

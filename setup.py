@@ -54,7 +54,7 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'requests>=2.18.0'
+        'requests>=2.24.0'
     ],
     setup_requires=[
         'pytest-runner',
@@ -62,6 +62,7 @@ setup(
     tests_require=[
         'pytest',
         'pytest-cov',
-        'responses>=0.9.0'
+        'responses>=0.12.0',
+        'networktest'
     ],
 )

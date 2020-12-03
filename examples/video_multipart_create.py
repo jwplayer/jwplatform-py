@@ -5,8 +5,8 @@ import logging
 import os
 import requests
 
-from jwplatform import Client
-from jwplatform.errors import JWPlatformError
+from jwplatform.v1 import Client
+from jwplatform.v1.errors import JWPlatformError
 
 
 logging.basicConfig(level=logging.INFO)

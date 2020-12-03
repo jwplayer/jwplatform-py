@@ -22,14 +22,14 @@ def update_thumbnail(api_key, api_secret, video_key, position=7.0, **kwargs):
     :param kwargs: Arguments conforming to standards found @ https://developer.jwplayer.com/jw-platform/reference/v1/methods/videos/thumbnails/update.html
     :return: <dict> Dict which represents the JSON response.
     """
-    jwplatform_client = jwplatform.Client(api_key, api_secret)
+    jwplatform_client = jwplatform.v1.Client(api_key, api_secret)
     logging.info("Updating video thumbnail.")
     try:
         response = jwplatform_client.videos.thumbnails.update(
             video_key=video_key,
             position=position,  # Parameter which specifies seconds into video to extract thumbnail from.
             **kwargs)
-    except jwplatform.errors.JWPlatformError as e:
+    except jwplatform.v1.errors.JWPlatformError as e:
         logging.error("Encountered an error updating thumbnail.\n{}".format(e))
         sys.exit(e.message)
     return response
@@ -48,13 +48,13 @@ def update_thumbnail_via_upload(api_key, api_secret, video_key, local_video_imag
     :param kwargs: Arguments conforming to standards found @ https://developer.jwplayer.com/jw-platform/reference/v1/methods/videos/thumbnails/update.html
     :return: <dict> Dict which represents the JSON response.
     """
-    jwplatform_client = jwplatform.Client(api_key, api_secret)
+    jwplatform_client = jwplatform.v1.Client(api_key, api_secret)
     logging.info("Updating video thumbnail.")
     try:
         response = jwplatform_client.videos.thumbnails.update(
             video_key=video_key,
             **kwargs)
-    except jwplatform.errors.JWPlatformError as e:
+    except jwplatform.v1.errors.JWPlatformError as e:
         logging.error("Encountered an error updating thumbnail.\n{}".format(e))
         sys.exit(e.message)
     logging.info(response)

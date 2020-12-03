@@ -17,11 +17,11 @@ def list_conversions(api_key, api_secret, video_key, **kwargs):
     :param kwargs: Arguments conforming to standards found @ https://developer.jwplayer.com/jw-platform/reference/v1/methods/videos/conversions/list.html
     :return: <dict> Dict which represents the JSON response.
     """
-    jwplatform_client = jwplatform.Client(api_key, api_secret)
+    jwplatform_client = jwplatform.v1.Client(api_key, api_secret)
     logging.info("Querying for video conversions.")
     try:
         response = jwplatform_client.videos.conversions.list(video_key=video_key, **kwargs)
-    except jwplatform.errors.JWPlatformError as e:
+    except jwplatform.v1.errors.JWPlatformError as e:
         logging.error("Encountered an error querying for video conversions.\n{}".format(e))
         sys.exit(e.message)
     return response
