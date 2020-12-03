@@ -29,9 +29,11 @@ test:
 version:
 	python3 setup.py --version
 
+build:
+	python3 setup.py sdist bdist_wheel
+
 release: clean build
-	python3 setup.py sdist upload
-	python3 setup.py bdist_wheel upload
+	twine upload dist/*
 
 dist: clean build
 	python3 setup.py sdist
