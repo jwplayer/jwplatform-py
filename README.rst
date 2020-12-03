@@ -72,7 +72,7 @@ License
 JW Platform API library is distributed under the `MIT license`_.
 
 .. _`JW Platform`: https://www.jwplayer.com/products/jwplatform/
-.. _`JW Player Developer Reference`: https://developer.jwplayer.com/jwplayer/reference#introduction-to-api-v2
+.. _`JW Player Developer`: https://developer.jwplayer.com/jwplayer/reference#introduction-to-api-v2
 .. _`jwplatform/errors.py`: https://github.com/jwplayer/jwplatform-py/blob/master/jwplatform/errors.py
 .. _`MIT license`: https://github.com/jwplayer/jwplatform-py/blob/master/LICENSE
 .. _`GitHub`: https://github.com/jwplayer/jwplatform-py
