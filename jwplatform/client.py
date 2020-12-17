@@ -3,11 +3,12 @@ import http.client
 import json
 import urllib.parse
 
-from jwplatform import __version__
+from jwplatform import __version__, constants
 from jwplatform.errors import APIError
 from jwplatform.response import APIResponse, ResourceResponse, ResourcesResponse
+from jwplatform.upload import MultipartUpload, determine_upload_method, SingleUpload, UploadType
 
-JWPLATFORM_API_HOST = 'api.jwplayer.com'
+JWPLATFORM_API_HOST = 'api-dev.jwplayer.com'
 JWPLATFORM_API_PORT = 443
 USER_AGENT = f"jwplatform_client-python/{__version__}"
 
@@ -28,7 +29,7 @@ class JWPlatformClient:
                               Default is 'api.jwplayer.com'.
 
     Examples:
-        >>> jwplatform_client = jwplatform.client.Client('API_KEY')
+        jwplatform_client = jwplatform.client.Client('API_KEY')
     """
 
     def __init__(self, secret=None, host=None):
@@ -99,6 +100,20 @@ class _ScopedClient:
     def __init__(self, client):
         self._client = client
 
+class _HierarchicalResourceClient(_ScopedClient):
+
+    _resource_name = None
+    _id_name = None
+    _collection_path = "/v2/{resource_name}/{resource_id}/{subresource_name}/"
+    _singular_path = "/v2/{resource_name}/{resource_id}/{subresource_name}/{subresource_id}/"
+
+    def list(self, resource_id, subresource_id, query_params=None):
+        response = self._client.request(
+            method="GET",
+            path=self._collection_path.format(resource_id=resource_id, subresource_id=subresource_id),
+            query_params=query_params
+        )
+        return ResourcesResponse.from_client(response, self._resource_name, self.__class__)
 
 class _ResourceClient(_ScopedClient):
 
@@ -219,10 +234,24 @@ class _ChannelEventClient(_ScopedClient):
         )
 
 
+CREATE_MEDIA_PAYLOAD = {
+    "upload": {
+    },
+    "metadata": {
+
+    }
+}
+
 class _MediaClient(_SiteResourceClient):
 
     _resource_name = "media"
     _id_name = "media_id"
+
+    def __init__(self, client, min_part_size: int = constants.MIN_PART_SIZE, retry_count: int = constants.RETRY_COUNT):
+        super().__init__(client)
+        self.upload_retry_count = retry_count
+        self.min_part_size = min_part_size
+
 
     def reupload(self, site_id, body, query_params=None, **kwargs):
         resource_id = kwargs[self._id_name]
@@ -232,6 +261,43 @@ class _MediaClient(_SiteResourceClient):
             body=body,
             query_params=query_params
         )
+
+    def get_upload_handler(self, site_id, file, body=None, query_params=None):
+        if self.min_part_size < constants.MIN_PART_SIZE:
+            raise ValueError(f"The part size has to be at least greater than {constants.MIN_PART_SIZE} bytes.")
+        # Create the media
+        upload_method = determine_upload_method(file)
+        if not body:
+            body = CREATE_MEDIA_PAYLOAD.copy()
+        body["upload"]["method"] = upload_method
+        resp = self.create(site_id, body, query_params)
+
+        # Upload the file
+        upload_instance = self.process_upload(resp, upload_method, file)
+
+        # Return the upload_instance to the caller so that they can resume at their own by calling the upload
+        #  again
+        return upload_instance
+
+
+    def process_upload(self, resp, upload_method, file):
+        # Extract the upload_id and upload_token or the direct link
+        # upload_method==Single -> Direct link
+        # upload_method!=Single -> upload_id, upload_token
+        if upload_method == UploadType.direct.value:
+            result = resp.json()
+            direct_link = result["upload_link"]
+            upload_handler = SingleUpload(direct_link, self.upload_retry_count)
+        elif upload_method == UploadType.multipart.value:
+            result = resp.json_body
+            upload_id = result["upload_id"]
+            upload_token = result["upload_token"]
+            upload_handler = MultipartUpload(upload_id, upload_token, self.min_part_size, self.upload_retry_count)
+        else:
+            raise Exception('Invalid upload method')
+        return upload_handler
+        # upload_handler.upload(file)
+
 
 class _WebhookClient(_ResourceClient):
 
