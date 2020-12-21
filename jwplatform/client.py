@@ -100,23 +100,24 @@ class _ScopedClient:
     def __init__(self, client):
         self._client = client
 
-class _HierarchicalResourceClient(_ScopedClient):
 
+class _GenericResourceClient(_ScopedClient):
     _resource_name = None
     _id_name = None
-    _collection_path = "/v2/{resource_name}/{resource_id}/{subresource_name}/"
-    _singular_path = "/v2/{resource_name}/{resource_id}/{subresource_name}/{subresource_id}/"
+    _collection_path = "/v1/{resource_name}/{resource_id}/{subresource_name}"
+    _singular_path = "/v1/{resource_name}/{resource_id}/{subresource_name}/{subresource_id}"
 
-    def list(self, resource_id, subresource_id, query_params=None):
+    def list(self, resource_name, resource_id, subresource_name, query_params=None):
         response = self._client.request(
             method="GET",
-            path=self._collection_path.format(resource_id=resource_id, subresource_id=subresource_id),
+            path=self._collection_path.format(resource_name=resource_name, resource_id=resource_id,
+                                              subresource_name=subresource_name),
             query_params=query_params
         )
-        return ResourcesResponse.from_client(response, self._resource_name, self.__class__)
+        return ResourcesResponse.from_client(response, self.resource_name, self.__class__)
+
 
 class _ResourceClient(_ScopedClient):
-
     _resource_name = None
     _id_name = None
     _collection_path = "/v2/{resource_name}/"
@@ -143,7 +144,8 @@ class _ResourceClient(_ScopedClient):
         resource_id = kwargs[self._id_name]
         response = self._client.request(
             method="GET",
-            path=self._singular_path.format(site_id=site_id, resource_name=self._resource_name, resource_id=resource_id),
+            path=self._singular_path.format(site_id=site_id, resource_name=self._resource_name,
+                                            resource_id=resource_id),
             query_params=query_params
         )
         return ResourceResponse.from_client(response, self.__class__)
@@ -152,7 +154,8 @@ class _ResourceClient(_ScopedClient):
         resource_id = kwargs[self._id_name]
         response = self._client.request(
             method="PATCH",
-            path=self._singular_path.format(site_id=site_id, resource_name=self._resource_name, resource_id=resource_id),
+            path=self._singular_path.format(site_id=site_id, resource_name=self._resource_name,
+                                            resource_id=resource_id),
             body=body,
             query_params=query_params
         )
@@ -162,13 +165,13 @@ class _ResourceClient(_ScopedClient):
         resource_id = kwargs[self._id_name]
         return self._client.request(
             method="DELETE",
-            path=self._singular_path.format(site_id=site_id, resource_name=self._resource_name, resource_id=resource_id),
+            path=self._singular_path.format(site_id=site_id, resource_name=self._resource_name,
+                                            resource_id=resource_id),
             query_params=query_params
         )
 
 
 class _SiteResourceClient(_ResourceClient):
-
     _collection_path = "/v2/sites/{site_id}/{resource_name}/"
     _singular_path = "/v2/sites/{site_id}/{resource_name}/{resource_id}/"
 
@@ -185,13 +188,11 @@ class _AnalyticsClient(_ScopedClient):
 
 
 class _ImportClient(_SiteResourceClient):
-
     _resource_name = "imports"
     _id_name = "import_id"
 
 
 class _ChannelClient(_SiteResourceClient):
-
     _resource_name = "channels"
     _id_name = "channel_id"
 
@@ -242,8 +243,8 @@ CREATE_MEDIA_PAYLOAD = {
     }
 }
 
-class _MediaClient(_SiteResourceClient):
 
+class _MediaClient(_SiteResourceClient):
     _resource_name = "media"
     _id_name = "media_id"
 
@@ -252,12 +253,12 @@ class _MediaClient(_SiteResourceClient):
         self.upload_retry_count = retry_count
         self.min_part_size = min_part_size
 
-
     def reupload(self, site_id, body, query_params=None, **kwargs):
         resource_id = kwargs[self._id_name]
         return self._client.request(
             method="PUT",
-            path=self._singular_path.format(site_id=site_id, resource_name=self._resource_name, resource_id=resource_id) + "reupload/",
+            path=self._singular_path.format(site_id=site_id, resource_name=self._resource_name,
+                                            resource_id=resource_id) + "reupload/",
             body=body,
             query_params=query_params
         )
@@ -279,34 +280,29 @@ class _MediaClient(_SiteResourceClient):
         #  again
         return upload_instance
 
-
     def process_upload(self, resp, upload_method, file):
         # Extract the upload_id and upload_token or the direct link
-        # upload_method==Single -> Direct link
-        # upload_method!=Single -> upload_id, upload_token
         if upload_method == UploadType.direct.value:
             result = resp.json()
             direct_link = result["upload_link"]
-            upload_handler = SingleUpload(direct_link, self.upload_retry_count)
+            upload_handler = SingleUpload(direct_link, file, self.upload_retry_count)
         elif upload_method == UploadType.multipart.value:
             result = resp.json_body
             upload_id = result["upload_id"]
             upload_token = result["upload_token"]
-            upload_handler = MultipartUpload(upload_id, upload_token, self.min_part_size, self.upload_retry_count)
+            client = _GenericResourceClient(self._client)
+            upload_handler = MultipartUpload(client, upload_id, upload_token, file, self.min_part_size, self.upload_retry_count)
         else:
             raise Exception('Invalid upload method')
         return upload_handler
-        # upload_handler.upload(file)
 
 
 class _WebhookClient(_ResourceClient):
-
     _resource_name = "webhooks"
     _id_name = "webhook_id"
 
 
 class _VpbConfigClient(_ResourceClient):
-
     _resource_name = "vpb_configs"
     _id_name = "config_id"
     _collection_path = "/v2/sites/{site_id}/advertising/{resource_name}/"

@@ -22,16 +22,18 @@ def determine_upload_method(file) -> UploadType:
 
 class MultipartUpload:
 
-    def __init__(self, upload_id: str, upload_token: str, min_part_size, retry_count):
+    def __init__(self, client, upload_id: str, upload_token: str, file, min_part_size, retry_count):
         self.upload_id = upload_id
         self.upload_token = upload_token
         self.base_url = 'http://upload-api.dev.longtailvideo.com'
         self.min_part_size = min_part_size
         self.upload_retry_count = retry_count
+        self.file = file
+        self.client = client
 
-    def upload(self, file):
+    def upload(self):
         # Follow the multi-part implementation
-        filename = file.name
+        filename = self.file.name
         file_size = os.stat(filename).st_size
         part_count = file_size // self.min_part_size + 1
         # Get the part links
@@ -39,26 +41,26 @@ class MultipartUpload:
 
         # Upload the parts
         for part_number in range(1, part_count + 1):
-            bytes_chunk = file.read(self.min_part_size)
+            bytes_chunk = self.file.read(self.min_part_size)
             if part_number < part_count and len(bytes_chunk) != self.min_part_size:
                 raise IOError("Failed to read enough bytes")
             retry_count = 0
             while retry_count < self.upload_retry_count:
                 try:
-                    self.upload_part(bytes_chunk, part_number, upload_links)
+                    self._upload_part(bytes_chunk, part_number, upload_links)
                     break
                 except (IOError, HTTPError):
-                    print(f"Encountered error upload part {part_number} of {part_count} for file {filename}.")
+                    print(f"Encountered error upload part {part_number} of {part_count} for file {filename}. Retrying.")
                     retry_count = retry_count + 1
 
             if retry_count >= self.upload_retry_count:
-                raise IOError("Max retries exceeded while uploading part {part_number} of {part_count} for file {"
-                              "filename}")
+                raise IOError(f"Max retries ({self.upload_retry_count}) exceeded while uploading part {part_number} of "
+                              f"{part_count} for file {filename}")
 
         # Mark upload as complete
-        self.mark_upload_completion()
+        self._mark_upload_completion()
 
-    def upload_part(self, bytes_chunk, part_number, upload_links):
+    def _upload_part(self, bytes_chunk, part_number, upload_links):
         # Add a S3 server-side checksum validation too if possible.
         computed_hash = self._compute_part_hash(bytes_chunk)
 
@@ -84,15 +86,17 @@ class MultipartUpload:
 
     def _get_pre_signed_part_links(self, part_count) -> {}:
         query_params = {'page_length': part_count}
-        resp = requests.get(
-            self.base_url
-            + f"/v1/uploads/{self.upload_id}/parts",
-            headers={
-                "Authorization": f"Bearer {self.upload_token}",
-            },
-            params=query_params
-        )
-        resp.raise_for_status()
+        # resp = requests.get(
+        #     self.base_url
+        #     + f"/v1/uploads/{self.upload_id}/parts",
+        #     headers={
+        #         "Authorization": f"Bearer {self.upload_token}",
+        #     },
+        #     params=query_params
+        # )
+        # resp.raise_for_status()
+        resp = self.client.list(resource_name='uploads', resource_id=self.upload_id, subresource_name='parts',
+                                query_params=query_params)
         body = resp.json()
         return body["parts"]
 
@@ -101,7 +105,7 @@ class MultipartUpload:
         hashing_instance.update(bytes_chunk)
         return hashing_instance.hexdigest()
 
-    def mark_upload_completion(self):
+    def _mark_upload_completion(self):
         resp = requests.put(self.base_url + f"/v1/uploads/{self.upload_id}/complete",
                             headers={"Authorization": f"Bearer {self.upload_token}"})
         resp.raise_for_status()
@@ -110,13 +114,14 @@ class MultipartUpload:
 
 class SingleUpload:
 
-    def __init__(self, upload_link, retry_count):
+    def __init__(self, upload_link, file, retry_count):
         self.upload_link = upload_link
         self.upload_retry_count = retry_count
+        self.file = file
 
-    def upload(self, file):
+    def upload(self):
         # Upload to S3 directly
-        bytes_chunk = file.read()
+        bytes_chunk = self.file.read()
         retry_count = 0
         while retry_count < self.upload_retry_count:
             try:
@@ -124,7 +129,7 @@ class SingleUpload:
                 resp.raise_for_status()
                 break
             except (IOError, HTTPError):
-                print(f"Encountered error uploading file {file.name}.")
+                print(f"Encountered error uploading file {self.file.name}.")
                 retry_count = retry_count + 1
 
         if retry_count >= self.upload_retry_count:
