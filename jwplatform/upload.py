@@ -17,15 +17,13 @@ def determine_upload_method(file) -> UploadType:
     file_size = os.stat(filename).st_size
     if file_size < constants.MIN_PART_SIZE:
         return UploadType.direct.value
-    return str(UploadType.multipart.value)
+    return UploadType.multipart.value
 
 
 class MultipartUpload:
 
-    def __init__(self, client, upload_id: str, upload_token: str, file, min_part_size, retry_count):
+    def __init__(self, client, upload_id: str, file, min_part_size, retry_count):
         self.upload_id = upload_id
-        self.upload_token = upload_token
-        self.base_url = 'http://upload-api.dev.longtailvideo.com'
         self.min_part_size = min_part_size
         self.upload_retry_count = retry_count
         self.file = file
@@ -86,18 +84,9 @@ class MultipartUpload:
 
     def _get_pre_signed_part_links(self, part_count) -> {}:
         query_params = {'page_length': part_count}
-        # resp = requests.get(
-        #     self.base_url
-        #     + f"/v1/uploads/{self.upload_id}/parts",
-        #     headers={
-        #         "Authorization": f"Bearer {self.upload_token}",
-        #     },
-        #     params=query_params
-        # )
-        # resp.raise_for_status()
         resp = self.client.list(resource_name='uploads', resource_id=self.upload_id, subresource_name='parts',
                                 query_params=query_params)
-        body = resp.json()
+        body = resp.json_body
         return body["parts"]
 
     def _compute_part_hash(self, bytes_chunk) -> str:
@@ -106,9 +95,7 @@ class MultipartUpload:
         return hashing_instance.hexdigest()
 
     def _mark_upload_completion(self):
-        resp = requests.put(self.base_url + f"/v1/uploads/{self.upload_id}/complete",
-                            headers={"Authorization": f"Bearer {self.upload_token}"})
-        resp.raise_for_status()
+        self.client.update(resource_name='uploads', resource_id=self.upload_id, subresource_name='complete')
         print("Upload successful!")
 
 

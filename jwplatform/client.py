@@ -97,7 +97,7 @@ class JWPlatformClient:
 
 class _ScopedClient:
 
-    def __init__(self, client):
+    def __init__(self, client: JWPlatformClient):
         self._client = client
 
 
@@ -107,6 +107,9 @@ class _GenericResourceClient(_ScopedClient):
     _collection_path = "/v1/{resource_name}/{resource_id}/{subresource_name}"
     _singular_path = "/v1/{resource_name}/{resource_id}/{subresource_name}/{subresource_id}"
 
+    def __init__(self, client: JWPlatformClient):
+        super().__init__(client)
+
     def list(self, resource_name, resource_id, subresource_name, query_params=None):
         response = self._client.request(
             method="GET",
@@ -114,7 +117,24 @@ class _GenericResourceClient(_ScopedClient):
                                               subresource_name=subresource_name),
             query_params=query_params
         )
-        return ResourcesResponse.from_client(response, self.resource_name, self.__class__)
+        return ResourcesResponse.from_client(response, subresource_name, self.__class__)
+
+    def update(self, resource_name, resource_id, subresource_name, body=None):
+        response = self._client.request(
+            method="PUT",
+            path=self._collection_path.format(resource_name=resource_name, resource_id=resource_id,
+                                              subresource_name=subresource_name),
+            body=body
+        )
+        return ResourceResponse.from_client(response, self.__class__)
+
+
+class _UploadClient(_GenericResourceClient):
+
+    def __init__(self, api_secret):
+        base_url = 'upload-dev.jwplayer.com'
+        client = JWPlatformClient(secret=api_secret, host=base_url)
+        super().__init__(client)
 
 
 class _ResourceClient(_ScopedClient):
@@ -248,7 +268,9 @@ class _MediaClient(_SiteResourceClient):
     _resource_name = "media"
     _id_name = "media_id"
 
-    def __init__(self, client, min_part_size: int = constants.MIN_PART_SIZE, retry_count: int = constants.RETRY_COUNT):
+    def __init__(self, client: JWPlatformClient,
+                 min_part_size: int = constants.MIN_PART_SIZE,
+                 retry_count: int = constants.RETRY_COUNT):
         super().__init__(client)
         self.upload_retry_count = retry_count
         self.min_part_size = min_part_size
@@ -290,8 +312,9 @@ class _MediaClient(_SiteResourceClient):
             result = resp.json_body
             upload_id = result["upload_id"]
             upload_token = result["upload_token"]
-            client = _GenericResourceClient(self._client)
-            upload_handler = MultipartUpload(client, upload_id, upload_token, file, self.min_part_size, self.upload_retry_count)
+            upload_client = _UploadClient(api_secret=upload_token)
+            upload_handler = MultipartUpload(upload_client, upload_id, file, self.min_part_size,
+                                             self.upload_retry_count)
         else:
             raise Exception('Invalid upload method')
         return upload_handler
