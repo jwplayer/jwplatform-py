@@ -104,8 +104,8 @@ class _ScopedClient:
 class _GenericResourceClient(_ScopedClient):
     _resource_name = None
     _id_name = None
-    _collection_path = "/v1/{resource_name}/{resource_id}/{subresource_name}"
-    _singular_path = "/v1/{resource_name}/{resource_id}/{subresource_name}/{subresource_id}"
+    _collection_path = "/v2/{resource_name}/{resource_id}/{subresource_name}"
+    _singular_path = "/v2/{resource_name}/{resource_id}/{subresource_name}/{subresource_id}"
 
     def __init__(self, client: JWPlatformClient):
         super().__init__(client)
@@ -119,7 +119,16 @@ class _GenericResourceClient(_ScopedClient):
         )
         return ResourcesResponse.from_client(response, subresource_name, self.__class__)
 
-    def update(self, resource_name, resource_id, subresource_name, body=None):
+
+class _UploadClient(_GenericResourceClient):
+    _collection_path = "/v1/uploads/{resource_id}/{subresource_name}"
+    _singular_path = "/v1/uploads/{resource_id}/{subresource_name}/{subresource_id}"
+
+    def __init__(self, api_secret, base_url='upload.jwplayer.com'):
+        client = JWPlatformClient(secret=api_secret, host=base_url)
+        super().__init__(client)
+
+    def complete(self, resource_name, resource_id, subresource_name, body=None):
         response = self._client.request(
             method="PUT",
             path=self._collection_path.format(resource_name=resource_name, resource_id=resource_id,
@@ -127,14 +136,6 @@ class _GenericResourceClient(_ScopedClient):
             body=body
         )
         return ResourceResponse.from_client(response, self.__class__)
-
-
-class _UploadClient(_GenericResourceClient):
-
-    def __init__(self, api_secret):
-        base_url = 'upload-dev.jwplayer.com'
-        client = JWPlatformClient(secret=api_secret, host=base_url)
-        super().__init__(client)
 
 
 class _ResourceClient(_ScopedClient):
@@ -268,12 +269,8 @@ class _MediaClient(_SiteResourceClient):
     _resource_name = "media"
     _id_name = "media_id"
 
-    def __init__(self, client: JWPlatformClient,
-                 min_part_size: int = constants.MIN_PART_SIZE,
-                 retry_count: int = constants.RETRY_COUNT):
+    def __init__(self, client: JWPlatformClient):
         super().__init__(client)
-        self.upload_retry_count = retry_count
-        self.min_part_size = min_part_size
 
     def reupload(self, site_id, body, query_params=None, **kwargs):
         resource_id = kwargs[self._id_name]
@@ -285,9 +282,11 @@ class _MediaClient(_SiteResourceClient):
             query_params=query_params
         )
 
-    def get_upload_handler(self, site_id, file, body=None, query_params=None):
-        if self.min_part_size < constants.MIN_PART_SIZE:
-            raise ValueError(f"The part size has to be at least greater than {constants.MIN_PART_SIZE} bytes.")
+    def get_upload_handler(self, site_id, file, body=None, query_params=None, **kwargs):
+
+        if not kwargs:
+            kwargs = {}
+
         # Create the media
         upload_method = determine_upload_method(file)
         if not body:
@@ -296,25 +295,30 @@ class _MediaClient(_SiteResourceClient):
         resp = self.create(site_id, body, query_params)
 
         # Upload the file
-        upload_instance = self.process_upload(resp, upload_method, file)
+        upload_handler = self.process_upload(resp, upload_method, file, **kwargs)
 
         # Return the upload_instance to the caller so that they can resume at their own by calling the upload
         #  again
-        return upload_instance
+        return upload_handler
 
-    def process_upload(self, resp, upload_method, file):
+    def process_upload(self, resp, upload_method, file, **kwargs):
         # Extract the upload_id and upload_token or the direct link
+        base_url = kwargs['base_url'] if 'base_url' in kwargs else None
+        target_part_size = int(kwargs['target_part_size']) if 'target_part_size' in kwargs else constants.MIN_PART_SIZE
+        retry_count = int(kwargs['retry_count']) if 'retry_count' in kwargs else constants.RETRY_COUNT
+
         if upload_method == UploadType.direct.value:
             result = resp.json()
             direct_link = result["upload_link"]
-            upload_handler = SingleUpload(direct_link, file, self.upload_retry_count)
+            upload_handler = SingleUpload(direct_link, file, retry_count)
         elif upload_method == UploadType.multipart.value:
             result = resp.json_body
             upload_id = result["upload_id"]
             upload_token = result["upload_token"]
-            upload_client = _UploadClient(api_secret=upload_token)
-            upload_handler = MultipartUpload(upload_client, upload_id, file, self.min_part_size,
-                                             self.upload_retry_count)
+            upload_client = _UploadClient(api_secret=upload_token, base_url=base_url) \
+                if base_url else _UploadClient(api_secret=upload_token)
+            upload_handler = MultipartUpload(upload_client, upload_id, file, target_part_size,
+                                             retry_count)
         else:
             raise Exception('Invalid upload method')
         return upload_handler

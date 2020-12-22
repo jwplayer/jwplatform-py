@@ -22,25 +22,29 @@ def determine_upload_method(file) -> UploadType:
 
 class MultipartUpload:
 
-    def __init__(self, client, upload_id: str, file, min_part_size, retry_count):
+    def __init__(self, client, upload_id: str, file, target_part_size, retry_count):
         self.upload_id = upload_id
-        self.min_part_size = min_part_size
+        self.target_part_size = target_part_size
         self.upload_retry_count = retry_count
         self.file = file
         self.client = client
 
     def upload(self):
-        # Follow the multi-part implementation
+
+        if self.target_part_size < constants.MIN_PART_SIZE:
+            raise ValueError(f"The part size has to be at least greater than {constants.MIN_PART_SIZE} bytes.")
+
         filename = self.file.name
         file_size = os.stat(filename).st_size
-        part_count = file_size // self.min_part_size + 1
+        part_count = file_size // self.target_part_size + 1
         # Get the part links
         upload_links = self._get_pre_signed_part_links(part_count)
 
         # Upload the parts
         for part_number in range(1, part_count + 1):
-            bytes_chunk = self.file.read(self.min_part_size)
-            if part_number < part_count and len(bytes_chunk) != self.min_part_size:
+            bytes_chunk = self.file.read(self.target_part_size)
+            if part_number < part_count and len(bytes_chunk) != self.target_part_size:
+                # ToDo: Throw custom exceptions that are handled by the client(user) code.
                 raise IOError("Failed to read enough bytes")
             retry_count = 0
             while retry_count < self.upload_retry_count:
@@ -52,6 +56,7 @@ class MultipartUpload:
                     retry_count = retry_count + 1
 
             if retry_count >= self.upload_retry_count:
+                # ToDo: Throw custom exceptions that are handled by the client(user) code.
                 raise IOError(f"Max retries ({self.upload_retry_count}) exceeded while uploading part {part_number} of "
                               f"{part_count} for file {filename}")
 
@@ -72,6 +77,7 @@ class MultipartUpload:
         upload_link = upload_links[part_number - 1]["upload_link"] if "upload_link" in upload_links[part_number - 1] \
             else None
         if not upload_link:
+            # ToDo: Throw custom exceptions that are handled by the client(user) code.
             raise Exception(f"Invalid upload link for part {part_number}.")
 
         resp = requests.put(upload_links[part_number - 1]["upload_link"], data=bytes_chunk)
@@ -79,11 +85,13 @@ class MultipartUpload:
 
         returned_hash = resp.headers['ETag']
         if repr(returned_hash) != repr(f"\"{computed_hash}\""):  # The returned hash is surrounded by '"' character
+            # ToDo: Throw custom exceptions that are handled by the client(user) code.
             raise IOError("The hash of the uploaded file does not match with the hash on the server.")
         print(f"Successfully uploaded part {part_number} for upload id {self.upload_id}")
 
     def _get_pre_signed_part_links(self, part_count) -> {}:
         query_params = {'page_length': part_count}
+        # ToDo: Paginate if results are more than 1000
         resp = self.client.list(resource_name='uploads', resource_id=self.upload_id, subresource_name='parts',
                                 query_params=query_params)
         body = resp.json_body
@@ -95,7 +103,7 @@ class MultipartUpload:
         return hashing_instance.hexdigest()
 
     def _mark_upload_completion(self):
-        self.client.update(resource_name='uploads', resource_id=self.upload_id, subresource_name='complete')
+        self.client.complete(resource_name='uploads', resource_id=self.upload_id, subresource_name='complete')
         print("Upload successful!")
 
 
