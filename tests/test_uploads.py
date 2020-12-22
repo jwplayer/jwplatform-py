@@ -12,7 +12,7 @@ def test_upload(api_secret):
     site_id = '3Flf1waG'
     file_absolute_path = "../Origins.webm"
     with open(file_absolute_path, "rb") as file:
-        kwargs = {'base_url':'upload-dev.jwplayer.com', 'target_part_size': 7 * 1024 * 1024}
+        kwargs = {'base_url': 'upload-dev.jwplayer.com', 'target_part_size': 20 * 1024 * 1024}
         upload_handler = media_client_instance.get_upload_handler(site_id, file, **kwargs)
         upload_handler.upload()
 

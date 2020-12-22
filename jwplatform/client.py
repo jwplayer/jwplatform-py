@@ -283,15 +283,17 @@ class _MediaClient(_SiteResourceClient):
         )
 
     def get_upload_handler(self, site_id, file, body=None, query_params=None, **kwargs):
-
         if not kwargs:
             kwargs = {}
 
-        # Create the media
-        upload_method = determine_upload_method(file)
+        # Determine the upload type - Single or multi-part
+        target_part_size = int(kwargs['target_part_size']) if 'target_part_size' in kwargs else constants.MIN_PART_SIZE
+        upload_method = determine_upload_method(file, target_part_size)
         if not body:
             body = CREATE_MEDIA_PAYLOAD.copy()
         body["upload"]["method"] = upload_method
+
+        # Create the media
         resp = self.create(site_id, body, query_params)
 
         # Upload the file
@@ -302,13 +304,12 @@ class _MediaClient(_SiteResourceClient):
         return upload_handler
 
     def process_upload(self, resp, upload_method, file, **kwargs):
-        # Extract the upload_id and upload_token or the direct link
         base_url = kwargs['base_url'] if 'base_url' in kwargs else None
         target_part_size = int(kwargs['target_part_size']) if 'target_part_size' in kwargs else constants.MIN_PART_SIZE
         retry_count = int(kwargs['retry_count']) if 'retry_count' in kwargs else constants.RETRY_COUNT
 
         if upload_method == UploadType.direct.value:
-            result = resp.json()
+            result = resp.json_body
             direct_link = result["upload_link"]
             upload_handler = SingleUpload(direct_link, file, retry_count)
         elif upload_method == UploadType.multipart.value:

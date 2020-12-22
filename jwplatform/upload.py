@@ -12,10 +12,10 @@ class UploadType(Enum):
     multipart = "multipart"
 
 
-def determine_upload_method(file) -> UploadType:
+def determine_upload_method(file, target_part_size) -> str:
     filename = file.name
     file_size = os.stat(filename).st_size
-    if file_size < constants.MIN_PART_SIZE:
+    if file_size <= target_part_size:
         return UploadType.direct.value
     return UploadType.multipart.value
 
