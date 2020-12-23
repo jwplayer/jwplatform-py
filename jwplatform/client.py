@@ -3,12 +3,12 @@ import http.client
 import json
 import urllib.parse
 
-from jwplatform import __version__, constants
+from jwplatform import __version__, constants, common
 from jwplatform.errors import APIError
 from jwplatform.response import APIResponse, ResourceResponse, ResourcesResponse
-from jwplatform.upload import MultipartUpload, determine_upload_method, SingleUpload, UploadType
+from jwplatform.upload import MultipartUpload, SingleUpload, UploadType
 
-JWPLATFORM_API_HOST = 'api-dev.jwplayer.com'
+JWPLATFORM_API_HOST = 'api.jwplayer.com'
 JWPLATFORM_API_PORT = 443
 USER_AGENT = f"jwplatform_client-python/{__version__}"
 
@@ -128,11 +128,11 @@ class _UploadClient(_GenericResourceClient):
         client = JWPlatformClient(secret=api_secret, host=base_url)
         super().__init__(client)
 
-    def complete(self, resource_name, resource_id, subresource_name, body=None):
+    def complete(self, resource_id, body=None):
         response = self._client.request(
             method="PUT",
-            path=self._collection_path.format(resource_name=resource_name, resource_id=resource_id,
-                                              subresource_name=subresource_name),
+            path=self._collection_path.format(resource_id=resource_id,
+                                              subresource_name='complete'),
             body=body
         )
         return ResourceResponse.from_client(response, self.__class__)
@@ -282,28 +282,37 @@ class _MediaClient(_SiteResourceClient):
             query_params=query_params
         )
 
+    def determine_upload_method(self, file, target_part_size) -> str:
+        file_size = common.get_file_size(file)
+        if file_size <= target_part_size:
+            return UploadType.direct.value
+        return UploadType.multipart.value
+
     def get_upload_handler(self, site_id, file, body=None, query_params=None, **kwargs):
         if not kwargs:
             kwargs = {}
 
         # Determine the upload type - Single or multi-part
         target_part_size = int(kwargs['target_part_size']) if 'target_part_size' in kwargs else constants.MIN_PART_SIZE
-        upload_method = determine_upload_method(file, target_part_size)
+        upload_method = self.determine_upload_method(file, target_part_size)
         if not body:
             body = CREATE_MEDIA_PAYLOAD.copy()
+
+        if 'upload' not in body:
+            body['upload'] = {}
+
+        if not isinstance(body['upload'], dict):
+            raise ValueError(f"Invalid payload structure. The upload element needs to be dictionary.")
+
         body["upload"]["method"] = upload_method
 
         # Create the media
         resp = self.create(site_id, body, query_params)
 
         # Upload the file
-        upload_handler = self.process_upload(resp, upload_method, file, **kwargs)
+        return self._get_upload_handler_for_upload_type(resp, upload_method, file, **kwargs)
 
-        # Return the upload_instance to the caller so that they can resume at their own by calling the upload
-        #  again
-        return upload_handler
-
-    def process_upload(self, resp, upload_method, file, **kwargs):
+    def _get_upload_handler_for_upload_type(self, resp, upload_method, file, **kwargs):
         base_url = kwargs['base_url'] if 'base_url' in kwargs else None
         target_part_size = int(kwargs['target_part_size']) if 'target_part_size' in kwargs else constants.MIN_PART_SIZE
         retry_count = int(kwargs['retry_count']) if 'retry_count' in kwargs else constants.RETRY_COUNT
@@ -312,7 +321,7 @@ class _MediaClient(_SiteResourceClient):
             result = resp.json_body
             direct_link = result["upload_link"]
             upload_handler = SingleUpload(direct_link, file, retry_count)
-        elif upload_method == UploadType.multipart.value:
+        else:
             result = resp.json_body
             upload_id = result["upload_id"]
             upload_token = result["upload_token"]
@@ -320,8 +329,6 @@ class _MediaClient(_SiteResourceClient):
                 if base_url else _UploadClient(api_secret=upload_token)
             upload_handler = MultipartUpload(upload_client, upload_id, file, target_part_size,
                                              retry_count)
-        else:
-            raise Exception('Invalid upload method')
         return upload_handler
 
 

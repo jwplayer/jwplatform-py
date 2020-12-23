@@ -1,24 +1,16 @@
-import os
+import logging
 from enum import Enum
 from hashlib import md5
 import requests
 from requests import HTTPError
 
-from jwplatform import constants
+from jwplatform import constants, common
+from jwplatform.upload_errors import DataIntegrityError, MaxRetriesExceededError
 
 
 class UploadType(Enum):
     direct = "direct"
     multipart = "multipart"
-
-
-def determine_upload_method(file, target_part_size) -> str:
-    filename = file.name
-    file_size = os.stat(filename).st_size
-    if file_size <= target_part_size:
-        return UploadType.direct.value
-    return UploadType.multipart.value
-
 
 class MultipartUpload:
 
@@ -28,6 +20,7 @@ class MultipartUpload:
         self.upload_retry_count = retry_count
         self.file = file
         self.client = client
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     def upload(self):
 
@@ -35,8 +28,13 @@ class MultipartUpload:
             raise ValueError(f"The part size has to be at least greater than {constants.MIN_PART_SIZE} bytes.")
 
         filename = self.file.name
-        file_size = os.stat(filename).st_size
+        file_size = common.get_file_size(self.file)
         part_count = file_size // self.target_part_size + 1
+
+        if part_count > 1000:
+            raise ValueError(f"The given file cannot be divided into more than 1000 parts. Please try increasing the "
+                             f"target part size.")
+
         # Get the part links
         upload_links = self._get_pre_signed_part_links(part_count)
 
@@ -44,21 +42,20 @@ class MultipartUpload:
         for part_number in range(1, part_count + 1):
             bytes_chunk = self.file.read(self.target_part_size)
             if part_number < part_count and len(bytes_chunk) != self.target_part_size:
-                # ToDo: Throw custom exceptions that are handled by the client(user) code.
                 raise IOError("Failed to read enough bytes")
             retry_count = 0
             while retry_count < self.upload_retry_count:
                 try:
                     self._upload_part(bytes_chunk, part_number, upload_links)
                     break
-                except (IOError, HTTPError):
-                    print(f"Encountered error upload part {part_number} of {part_count} for file {filename}. Retrying.")
+                except (DataIntegrityError, HTTPError):
+                    self.logger.warning(f"Encountered error upload part {part_number} of {part_count} for file {filename}."
+                                        f" Retrying.")
                     retry_count = retry_count + 1
 
             if retry_count >= self.upload_retry_count:
-                # ToDo: Throw custom exceptions that are handled by the client(user) code.
-                raise IOError(f"Max retries ({self.upload_retry_count}) exceeded while uploading part {part_number} of "
-                              f"{part_count} for file {filename}")
+                raise MaxRetriesExceededError(f"Max retries ({self.upload_retry_count}) exceeded while uploading part"
+                                              f" {part_number} of {part_count} for file {filename}.")
 
         # Mark upload as complete
         self._mark_upload_completion()
@@ -77,7 +74,6 @@ class MultipartUpload:
         upload_link = upload_links[part_number - 1]["upload_link"] if "upload_link" in upload_links[part_number - 1] \
             else None
         if not upload_link:
-            # ToDo: Throw custom exceptions that are handled by the client(user) code.
             raise Exception(f"Invalid upload link for part {part_number}.")
 
         resp = requests.put(upload_links[part_number - 1]["upload_link"], data=bytes_chunk)
@@ -85,17 +81,27 @@ class MultipartUpload:
 
         returned_hash = resp.headers['ETag']
         if repr(returned_hash) != repr(f"\"{computed_hash}\""):  # The returned hash is surrounded by '"' character
-            # ToDo: Throw custom exceptions that are handled by the client(user) code.
-            raise IOError("The hash of the uploaded file does not match with the hash on the server.")
-        print(f"Successfully uploaded part {part_number} for upload id {self.upload_id}")
+            raise DataIntegrityError("The hash of the uploaded file does not match with the hash on the server.")
+        self.logger.info(f"Successfully uploaded part {part_number} for upload id {self.upload_id}")
 
     def _get_pre_signed_part_links(self, part_count) -> {}:
         query_params = {'page_length': part_count}
-        # ToDo: Paginate if results are more than 1000
+
         resp = self.client.list(resource_name='uploads', resource_id=self.upload_id, subresource_name='parts',
                                 query_params=query_params)
+
         body = resp.json_body
-        return body["parts"]
+        # Process the results if there are multiple pages
+        total_page_count = body['total'] // part_count
+        parts = body['parts']
+        if total_page_count > 1:
+            for page_number in range(1, total_page_count):
+                query_params['page'] = page_number + 1
+                resp = self.client.list(resource_name='uploads', resource_id=self.upload_id, subresource_name='parts',
+                                        query_params=query_params)
+                body = resp.json_body
+                parts.extend(body['parts'])
+        return parts
 
     def _compute_part_hash(self, bytes_chunk) -> str:
         hashing_instance = md5()
@@ -103,8 +109,8 @@ class MultipartUpload:
         return hashing_instance.hexdigest()
 
     def _mark_upload_completion(self):
-        self.client.complete(resource_name='uploads', resource_id=self.upload_id, subresource_name='complete')
-        print("Upload successful!")
+        self.client.complete(self.upload_id)
+        self.logger.info("Upload successful!")
 
 
 class SingleUpload:
@@ -122,11 +128,10 @@ class SingleUpload:
             try:
                 resp = requests.put(self.upload_link, data=bytes_chunk)
                 resp.raise_for_status()
-                break
+                return
             except (IOError, HTTPError):
-                print(f"Encountered error uploading file {self.file.name}.")
+                self.logger.warning(f"Encountered error uploading file {self.file.name}.")
                 retry_count = retry_count + 1
 
         if retry_count >= self.upload_retry_count:
-            raise IOError("Max retries exceeded while uploading part {part_number} of {part_count} for file {"
-                          "filename}")
+            raise MaxRetriesExceededError(f"Max retries exceeded while uploading file {self.file.name}")
