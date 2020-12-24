@@ -28,7 +28,7 @@ Initialize ``jwplatform`` client instance. API keys can be created in the JW Pla
 
 .. code-block:: python
 
-  jwplatform_client = jwplatform.client.Client('API_SECRET')
+  jwplatform_client = jwplatform.client.JWPlatformClient('API_SECRET')
 
 Make an API request:
 
