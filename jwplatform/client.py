@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
 import http.client
 import json
+import os
 import urllib.parse
 
-from jwplatform import __version__, constants, common
+from jwplatform import __version__
 from jwplatform.errors import APIError
 from jwplatform.response import APIResponse, ResourceResponse, ResourcesResponse
-from jwplatform.upload import MultipartUpload, SingleUpload, UploadType
+from jwplatform.upload import MultipartUpload, SingleUpload, UploadType, MIN_PART_SIZE
 
 JWPLATFORM_API_HOST = 'api.jwplayer.com'
 JWPLATFORM_API_PORT = 443
 USER_AGENT = f"jwplatform_client-python/{__version__}"
+RETRY_COUNT = 3
 
 __all__ = (
     "JWPLATFORM_API_HOST", "JWPLATFORM_API_PORT", "USER_AGENT", "JWPlatformClient"
@@ -61,7 +63,7 @@ class JWPlatformClient:
         self._connection.request(method, url, body, headers)
         response = self._connection.getresponse()
 
-        if response.status >= 200 and response.status <= 299:
+        if 200 <= response.status <= 299:
             return APIResponse(response)
 
         raise APIError.from_response(response)
@@ -101,7 +103,7 @@ class _ScopedClient:
         self._client = client
 
 
-class _GenericResourceClient(_ScopedClient):
+class _SubResourceClient(_ScopedClient):
     _resource_name = None
     _id_name = None
     _collection_path = "/v2/{resource_name}/{resource_id}/{subresource_name}"
@@ -120,7 +122,7 @@ class _GenericResourceClient(_ScopedClient):
         return ResourcesResponse.from_client(response, subresource_name, self.__class__)
 
 
-class _UploadClient(_GenericResourceClient):
+class _UploadClient(_SubResourceClient):
     _collection_path = "/v1/uploads/{resource_id}/{subresource_name}"
     _singular_path = "/v1/uploads/{resource_id}/{subresource_name}/{subresource_id}"
 
@@ -269,9 +271,6 @@ class _MediaClient(_SiteResourceClient):
     _resource_name = "media"
     _id_name = "media_id"
 
-    def __init__(self, client: JWPlatformClient):
-        super().__init__(client)
-
     def reupload(self, site_id, body, query_params=None, **kwargs):
         resource_id = kwargs[self._id_name]
         return self._client.request(
@@ -283,7 +282,7 @@ class _MediaClient(_SiteResourceClient):
         )
 
     def determine_upload_method(self, file, target_part_size) -> str:
-        file_size = common.get_file_size(file)
+        file_size = os.stat(file.name).st_size
         if file_size <= target_part_size:
             return UploadType.direct.value
         return UploadType.multipart.value
@@ -293,7 +292,7 @@ class _MediaClient(_SiteResourceClient):
             kwargs = {}
 
         # Determine the upload type - Single or multi-part
-        target_part_size = int(kwargs['target_part_size']) if 'target_part_size' in kwargs else constants.MIN_PART_SIZE
+        target_part_size = int(kwargs['target_part_size']) if 'target_part_size' in kwargs else MIN_PART_SIZE
         upload_method = self.determine_upload_method(file, target_part_size)
         if not body:
             body = CREATE_MEDIA_PAYLOAD.copy()
@@ -314,8 +313,8 @@ class _MediaClient(_SiteResourceClient):
 
     def _get_upload_handler_for_upload_type(self, resp, upload_method, file, **kwargs):
         base_url = kwargs['base_url'] if 'base_url' in kwargs else None
-        target_part_size = int(kwargs['target_part_size']) if 'target_part_size' in kwargs else constants.MIN_PART_SIZE
-        retry_count = int(kwargs['retry_count']) if 'retry_count' in kwargs else constants.RETRY_COUNT
+        target_part_size = int(kwargs['target_part_size']) if 'target_part_size' in kwargs else MIN_PART_SIZE
+        retry_count = int(kwargs['retry_count']) if 'retry_count' in kwargs else RETRY_COUNT
 
         if upload_method == UploadType.direct.value:
             result = resp.json_body
