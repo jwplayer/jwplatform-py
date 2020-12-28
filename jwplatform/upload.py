@@ -31,8 +31,8 @@ class MultipartUpload:
         file_size = common.get_file_size(self.file)
         part_count = file_size // self.target_part_size + 1
 
-        if part_count > 1000:
-            raise ValueError(f"The given file cannot be divided into more than 1000 parts. Please try increasing the "
+        if part_count > 10000:
+            raise ValueError(f"The given file cannot be divided into more than 10000 parts. Please try increasing the "
                              f"target part size.")
 
         # Get the part links
@@ -60,6 +60,19 @@ class MultipartUpload:
         # Mark upload as complete
         self._mark_upload_completion()
 
+    def _get_pre_signed_part_links(self, part_count) -> {}:
+        max_page_size = 1000
+        total_page_count = part_count // max_page_size + 1
+        parts = []
+        if total_page_count > 0:
+            for page_number in range(1, total_page_count + 1):
+                query_params = {'page_length': max_page_size, 'page': page_number}
+                resp = self.client.list(resource_name='uploads', resource_id=self.upload_id, subresource_name='parts',
+                                        query_params=query_params)
+                body = resp.json_body
+                parts.extend(body['parts'])
+        return parts
+
     def _upload_part(self, bytes_chunk, part_number, upload_links):
         # Add a S3 server-side checksum validation too if possible.
         computed_hash = self._compute_part_hash(bytes_chunk)
@@ -84,24 +97,6 @@ class MultipartUpload:
             raise DataIntegrityError("The hash of the uploaded file does not match with the hash on the server.")
         self.logger.info(f"Successfully uploaded part {part_number} for upload id {self.upload_id}")
 
-    def _get_pre_signed_part_links(self, part_count) -> {}:
-        query_params = {'page_length': part_count}
-
-        resp = self.client.list(resource_name='uploads', resource_id=self.upload_id, subresource_name='parts',
-                                query_params=query_params)
-
-        body = resp.json_body
-        # Process the results if there are multiple pages
-        total_page_count = body['total'] // part_count
-        parts = body['parts']
-        if total_page_count > 1:
-            for page_number in range(1, total_page_count):
-                query_params['page'] = page_number + 1
-                resp = self.client.list(resource_name='uploads', resource_id=self.upload_id, subresource_name='parts',
-                                        query_params=query_params)
-                body = resp.json_body
-                parts.extend(body['parts'])
-        return parts
 
     def _compute_part_hash(self, bytes_chunk) -> str:
         hashing_instance = md5()
