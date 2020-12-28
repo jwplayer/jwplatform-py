@@ -22,13 +22,13 @@ Import ``jwplatform`` library:
 
 .. code-block:: python
 
-  import jwplatform
+  from jwplatform.client import JWPlatformClient
 
 Initialize ``jwplatform`` client instance. API keys can be created in the JW Platform dashboard on the API Credentials page. Copy the secret value to use here.
 
 .. code-block:: python
 
-  jwplatform_client = jwplatform.client.JWPlatformClient('API_SECRET')
+  jwplatform_client = JWPlatformClient('API_SECRET')
 
 Make an API request:
 
