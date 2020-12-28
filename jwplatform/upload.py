@@ -38,43 +38,65 @@ class MultipartUpload:
                              f"target part size.")
 
         # Get the part links
-        upload_links = self._get_pre_signed_part_links(part_count)
+        upload_links = self._get_pre_signed_part_links(part_count, filename)
 
         # Upload the parts
-        for part_number in range(1, part_count + 1):
-            bytes_chunk = self._file.read(self._target_part_size)
-            if part_number < part_count and len(bytes_chunk) != self._target_part_size:
-                raise IOError("Failed to read enough bytes")
-            retry_count = 0
-            for _ in range(self._upload_retry_count):
-                try:
-                    self._upload_part(bytes_chunk, part_number, upload_links)
-                    break
-                except (DataIntegrityError, HTTPError) as err:
-                    self._logger.warning(err)
-                    if retry_count >= self._upload_retry_count:
-                        raise MaxRetriesExceededError(
-                            f"Max retries ({self._upload_retry_count}) exceeded while uploading part"
-                            f" {part_number} of {part_count} for file {filename}.")
-                    self._logger.warning(f"Encountered error upload part {part_number} of {part_count} for file "
-                                         f"{filename}. Retrying.")
-                    retry_count = retry_count + 1
+        # for part_number in range(1, part_count + 1):
+        #     bytes_chunk = self._file.read(self._target_part_size)
+        #     if part_number < part_count and len(bytes_chunk) != self._target_part_size:
+        #         raise IOError("Failed to read enough bytes")
+        #     retry_count = 0
+        #     for _ in range(self._upload_retry_count):
+        #         try:
+        #             self._upload_part(bytes_chunk, part_number, upload_links)
+        #             break
+        #         except (DataIntegrityError, HTTPError) as err:
+        #             self._logger.warning(err)
+        #             if retry_count >= self._upload_retry_count:
+        #                 raise MaxRetriesExceededError(
+        #                     f"Max retries ({self._upload_retry_count}) exceeded while uploading part"
+        #                     f" {part_number} of {part_count} for file {filename}.", err)
+        #             self._logger.warning(f"Encountered error upload part {part_number} of {part_count} for file "
+        #                                  f"{filename}. Retrying.")
+        #             retry_count = retry_count + 1
 
         # Mark upload as complete
         self._mark_upload_completion()
 
-    def _get_pre_signed_part_links(self, part_count) -> {}:
+    def _get_pre_signed_part_links(self, part_count, filename):
         max_page_size = 1000
+        remaining_parts_count = part_count
         total_page_count = part_count // max_page_size + 1
-        parts = []
         if total_page_count > 0:
             for page_number in range(1, total_page_count + 1):
-                query_params = {'page_length': max_page_size, 'page': page_number}
+                batch_size = min(remaining_parts_count, max_page_size)
+                page_length = batch_size
+                remaining_parts_count = remaining_parts_count - batch_size
+                query_params = {'page_length': page_length, 'page': page_number}
                 resp = self._client.list(resource_name='uploads', resource_id=self._upload_id, subresource_name='parts',
                                          query_params=query_params)
                 body = resp.json_body
-                parts.extend(body['parts'])
-        return parts
+                upload_links = body['parts']
+                mini_batch_size = page_length
+                for part_number in range(1, mini_batch_size + 1):
+                    bytes_chunk = self._file.read(self._target_part_size)
+                    if part_number < mini_batch_size and len(bytes_chunk) != self._target_part_size:
+                        raise IOError("Failed to read enough bytes")
+                    retry_count = 0
+                    for _ in range(self._upload_retry_count):
+                        try:
+                            self._upload_part(bytes_chunk, part_number, upload_links)
+                            break
+                        except (DataIntegrityError, HTTPError) as err:
+                            self._logger.warning(err)
+                            if retry_count >= self._upload_retry_count:
+                                raise MaxRetriesExceededError(
+                                    f"Max retries ({self._upload_retry_count}) exceeded while uploading part"
+                                    f" {part_number} of {part_count} for file {filename}.", err)
+                            self._logger.warning(
+                                f"Encountered error upload part {part_number} of {part_count} for file "
+                                f"{filename}. Retrying.")
+                            retry_count = retry_count + 1
 
     def _upload_part(self, bytes_chunk, part_number, upload_links):
         # Add a S3 server-side checksum validation too if possible.
