@@ -1,17 +1,33 @@
+import http.client
 import logging
 import os
 from enum import Enum
 from hashlib import md5
-import requests
-from requests import HTTPError
+from urllib.parse import urlparse
 
 
+MAX_PAGE_SIZE = 1000
 MIN_PART_SIZE = 5 * 1024 * 1024
 
 
 class UploadType(Enum):
     direct = "direct"
     multipart = "multipart"
+
+
+def _upload_to_s3(bytes_chunk, upload_link):
+    url_metadata = urlparse(upload_link)
+    if url_metadata.scheme in 'https':
+        connection = http.client.HTTPSConnection(host=url_metadata.hostname)
+    else:
+        connection = http.client.HTTPConnection(host=url_metadata.hostname)
+
+    connection.request('PUT', upload_link, body=bytes_chunk)
+    response = connection.getresponse()
+    if 200 <= response.status <= 299:
+        return response
+
+    raise S3UploadError(response)
 
 
 class MultipartUpload:
@@ -40,36 +56,15 @@ class MultipartUpload:
         # Get the part links
         upload_links = self._get_pre_signed_part_links(part_count, filename)
 
-        # Upload the parts
-        # for part_number in range(1, part_count + 1):
-        #     bytes_chunk = self._file.read(self._target_part_size)
-        #     if part_number < part_count and len(bytes_chunk) != self._target_part_size:
-        #         raise IOError("Failed to read enough bytes")
-        #     retry_count = 0
-        #     for _ in range(self._upload_retry_count):
-        #         try:
-        #             self._upload_part(bytes_chunk, part_number, upload_links)
-        #             break
-        #         except (DataIntegrityError, HTTPError) as err:
-        #             self._logger.warning(err)
-        #             if retry_count >= self._upload_retry_count:
-        #                 raise MaxRetriesExceededError(
-        #                     f"Max retries ({self._upload_retry_count}) exceeded while uploading part"
-        #                     f" {part_number} of {part_count} for file {filename}.", err)
-        #             self._logger.warning(f"Encountered error upload part {part_number} of {part_count} for file "
-        #                                  f"{filename}. Retrying.")
-        #             retry_count = retry_count + 1
-
         # Mark upload as complete
         self._mark_upload_completion()
 
     def _get_pre_signed_part_links(self, part_count, filename):
-        max_page_size = 1000
         remaining_parts_count = part_count
-        total_page_count = part_count // max_page_size + 1
+        total_page_count = part_count // MAX_PAGE_SIZE + 1
         if total_page_count > 0:
             for page_number in range(1, total_page_count + 1):
-                batch_size = min(remaining_parts_count, max_page_size)
+                batch_size = min(remaining_parts_count, MAX_PAGE_SIZE)
                 page_length = batch_size
                 remaining_parts_count = remaining_parts_count - batch_size
                 query_params = {'page_length': page_length, 'page': page_number}
@@ -87,7 +82,7 @@ class MultipartUpload:
                         try:
                             self._upload_part(bytes_chunk, part_number, upload_links)
                             break
-                        except (DataIntegrityError, HTTPError) as err:
+                        except (DataIntegrityError, PartUploadError) as err:
                             self._logger.warning(err)
                             if retry_count >= self._upload_retry_count:
                                 raise MaxRetriesExceededError(
@@ -112,12 +107,12 @@ class MultipartUpload:
             raise Exception(f"Invalid upload link for part {part_number}.")
 
         upload_link = upload_links[part_number - 1]["upload_link"]
-        resp = requests.put(upload_link, data=bytes_chunk)
-        resp.raise_for_status()
+        response = _upload_to_s3(bytes_chunk, upload_link)
 
-        returned_hash = resp.headers['ETag']
+        returned_hash = response.headers['ETag']
         if repr(returned_hash) != repr(f"\"{computed_hash}\""):  # The returned hash is surrounded by '"' character
             raise DataIntegrityError("The hash of the uploaded file does not match with the hash on the server.")
+
         self._logger.debug(f"Successfully uploaded part {part_number} for upload id {self._upload_id}")
 
     def _mark_upload_completion(self):
@@ -136,12 +131,11 @@ class SingleUpload:
     def upload(self):
         bytes_chunk = self._file.read()
         retry_count = 0
-        while retry_count < self._upload_retry_count:
+        for _ in range(self._upload_retry_count):
             try:
-                resp = requests.put(self._upload_link, data=bytes_chunk)
-                resp.raise_for_status()
+                _upload_to_s3(bytes_chunk, self._upload_link)
                 return
-            except (IOError, HTTPError):
+            except (IOError, PartUploadError):
                 self._logger.warning(f"Encountered error uploading file {self._file.name}.")
                 retry_count = retry_count + 1
 
@@ -154,4 +148,12 @@ class DataIntegrityError(Exception):
 
 
 class MaxRetriesExceededError(Exception):
+    pass
+
+
+class PartUploadError(Exception):
+    pass
+
+
+class S3UploadError(PartUploadError):
     pass
