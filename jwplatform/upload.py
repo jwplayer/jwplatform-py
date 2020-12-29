@@ -68,7 +68,7 @@ class MultipartUpload:
                 page_length = batch_size
                 remaining_parts_count = remaining_parts_count - batch_size
                 query_params = {'page_length': page_length, 'page': page_number}
-                resp = self._client.list(resource_name='uploads', resource_id=self._upload_id, subresource_name='parts',
+                resp = self._client.list(resource_id=self._upload_id, subresource_name='parts',
                                          query_params=query_params)
                 body = resp.json_body
                 upload_links = body['parts']
@@ -104,7 +104,7 @@ class MultipartUpload:
             return
 
         if not upload_links[part_number - 1]["upload_link"]:
-            raise Exception(f"Invalid upload link for part {part_number}.")
+            raise KeyError(f"Invalid upload link for part {part_number}.")
 
         upload_link = upload_links[part_number - 1]["upload_link"]
         response = _upload_to_s3(bytes_chunk, upload_link)

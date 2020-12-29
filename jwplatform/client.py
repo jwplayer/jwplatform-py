@@ -103,40 +103,23 @@ class _ScopedClient:
         self._client = client
 
 
-class _SubResourceClient(_ScopedClient):
-    _resource_name = None
-    _id_name = None
-    _collection_path = "/v2/{resource_name}/{resource_id}/{subresource_name}"
-    _singular_path = "/v2/{resource_name}/{resource_id}/{subresource_name}/{subresource_id}"
-
-    def __init__(self, client: JWPlatformClient):
-        super().__init__(client)
-
-    def list(self, resource_name, resource_id, subresource_name, query_params=None):
-        response = self._client.request(
-            method="GET",
-            path=self._collection_path.format(resource_name=resource_name, resource_id=resource_id,
-                                              subresource_name=subresource_name),
-            query_params=query_params
-        )
-        return ResourcesResponse.from_client(response, subresource_name, self.__class__)
-
-
-class _UploadClient(_SubResourceClient):
-    _collection_path = "/v1/uploads/{resource_id}/{subresource_name}"
-    _singular_path = "/v1/uploads/{resource_id}/{subresource_name}/{subresource_id}"
+class _UploadClient(_ScopedClient):
+    _collection_path = "/v1/uploads/{resource_id}"
 
     def __init__(self, api_secret, base_url='upload.jwplayer.com'):
         client = JWPlatformClient(secret=api_secret, host=base_url)
         super().__init__(client)
 
+    def list(self, resource_id, subresource_name, query_params=None):
+        resource_path = self._collection_path.format(resource_id=resource_id)
+        resource_path = f"{resource_path}/parts"
+        response = self._client.request(method="GET", path=resource_path, query_params=query_params)
+        return ResourcesResponse.from_client(response, subresource_name, self.__class__)
+
     def complete(self, resource_id, body=None):
-        response = self._client.request(
-            method="PUT",
-            path=self._collection_path.format(resource_id=resource_id,
-                                              subresource_name='complete'),
-            body=body
-        )
+        resource_path = self._collection_path.format(resource_id=resource_id)
+        resource_path = f"{resource_path}/complete"
+        response = self._client.request(method="PUT", path=resource_path, body=body)
         return ResourceResponse.from_client(response, self.__class__)
 
 
