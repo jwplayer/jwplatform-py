@@ -108,9 +108,11 @@ class JWPlatformClient:
                 response = self.request(method, path, body=body, headers=headers, query_params=query_params)
                 return response
             except RemoteDisconnected as rd:
-                self._logger.warning(rd)
+                self._logger.warning(rd, exc_info=True)
                 retry_count = retry_count + 1
                 if retry_count >= http_connection_retry_count:
+                    self._logger.error(f"Exceeded maximum number of retries {http_connection_retry_count}"
+                                       f"while connecting to the host.")
                     raise
 
 
@@ -306,7 +308,7 @@ class _MediaClient(_SiteResourceClient):
         upload_handler = self._get_upload_handler_for_upload_type(context_dict, file, **kwargs)
         try:
             upload_handler.upload()
-        except:
+        except Exception:
             file.seek(0, 0)
             raise
 
@@ -321,7 +323,7 @@ class _MediaClient(_SiteResourceClient):
         upload_handler = self._get_upload_handler_for_upload_type(context_dict, file, **kwargs)
         try:
             upload_handler.upload()
-        except:
+        except Exception:
             file.seek(0, 0)
             raise
 
