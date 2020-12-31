@@ -79,7 +79,7 @@ class MultipartUpload:
                     retry_count = 0
                     for _ in range(self._upload_retry_count):
                         try:
-                            # self._upload_part(bytes_chunk, part_number, upload_links)
+                            self._upload_part(bytes_chunk, part_number, upload_links)
                             self._logger.debug(
                                 f"Successfully uploaded part {(page_number - 1) * 1000 + part_number} for upload id "
                                 f"{self._upload_id}")
