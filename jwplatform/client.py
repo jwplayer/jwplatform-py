@@ -47,6 +47,7 @@ class JWPlatformClient:
             port=JWPLATFORM_API_PORT
         )
 
+        self._logger = logging.getLogger(self.__class__.__name__)
         self.analytics = _AnalyticsClient(self)
         self.Import = _ImportClient(self)
         self.Channel = _ChannelClient(self)
@@ -98,6 +99,19 @@ class JWPlatformClient:
             path += "?" + urllib.parse.urlencode(query_params)
 
         return self.raw_request(method=method, url=path, body=body, headers=headers)
+
+    def request_with_retry(self, method, path, body=None, headers=None, query_params=None,
+                           http_connection_retry_count=3):
+        retry_count = 0
+        for _ in range(http_connection_retry_count):
+            try:
+                response = self.request(method, path, body=body, headers=headers, query_params=query_params)
+                return response
+            except RemoteDisconnected as rd:
+                self._logger.warning(rd)
+                retry_count = retry_count + 1
+                if retry_count >= http_connection_retry_count:
+                    raise
 
 
 class _ScopedClient:
@@ -336,31 +350,17 @@ class _UploadClient(_ScopedClient):
     def __init__(self, api_secret, base_url='upload.jwplayer.com'):
         client = JWPlatformClient(secret=api_secret, host=base_url)
         super().__init__(client)
-        self._logger = logging.getLogger(self.__class__.__name__)
-
-    def request_with_retry(self, method, path, query_params=None, body=None):
-        http_connection_retry_count = 3
-        retry_count = 0
-        for _ in range(http_connection_retry_count):
-            try:
-                response = self._client.request(method, path, query_params=query_params, body=body)
-                return response
-            except RemoteDisconnected as rd:
-                self._logger.warning(rd)
-                retry_count = retry_count + 1
-                if retry_count >= http_connection_retry_count:
-                    raise
 
     def list(self, resource_id, subresource_name, query_params=None):
         resource_path = self._collection_path.format(resource_id=resource_id)
         resource_path = f"{resource_path}/parts"
-        response = self.request_with_retry(method="GET", path=resource_path, query_params=query_params)
+        response = self._client.request_with_retry(method="GET", path=resource_path, query_params=query_params)
         return ResourcesResponse.from_client(response, subresource_name, self.__class__)
 
     def complete(self, resource_id, body=None):
         resource_path = self._collection_path.format(resource_id=resource_id)
         resource_path = f"{resource_path}/complete"
-        response = self.request_with_retry(method="PUT", path=resource_path, body=body)
+        response = self._client.request_with_retry(method="PUT", path=resource_path, body=body)
         return ResourceResponse.from_client(response, self.__class__)
 
 
