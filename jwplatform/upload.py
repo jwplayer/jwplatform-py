@@ -54,53 +54,54 @@ class MultipartUpload:
                              f"target part size.")
 
         # Upload the parts
-        self._upload_parts(part_count, filename)
+        self._upload_parts(part_count)
 
         # Mark upload as complete
         self._mark_upload_completion()
 
-    def _upload_parts(self, part_count, filename):
-        remaining_parts_count = part_count
-        total_page_count = part_count // MAX_PAGE_SIZE + 1
-        if total_page_count > 0:
-            for page_number in range(1, total_page_count + 1):
-                batch_size = min(remaining_parts_count, MAX_PAGE_SIZE)
-                page_length = batch_size
-                remaining_parts_count = remaining_parts_count - batch_size
-                query_params = {'page_length': page_length, 'page': page_number}
-                resp = self._client.list(resource_id=self._upload_id, subresource_name='parts',
-                                         query_params=query_params)
-                body = resp.json_body
-                upload_links = body['parts']
-                for part_number in range(1, page_length + 1):
-                    bytes_chunk = self._file.read(self._target_part_size)
-                    if part_number < page_length and len(bytes_chunk) != self._target_part_size:
-                        raise IOError("Failed to read enough bytes")
-                    retry_count = 0
-                    for _ in range(self._upload_retry_count):
-                        try:
-                            self._upload_part(bytes_chunk, part_number, upload_links)
-                            self._logger.debug(
-                                f"Successfully uploaded part {(page_number - 1) * MAX_PAGE_SIZE + part_number} "
-                                f"for upload id "
-                                f"{self._upload_id}")
-                            break
-                        except (DataIntegrityError, PartUploadError, OSError) as err:
-                            self._logger.warning(err)
-                            retry_count = retry_count + 1
-                            self._logger.warning(
-                                f"Encountered error upload part {(page_number - 1) * MAX_PAGE_SIZE + part_number} of {part_count} for file {filename}.")
-                            if retry_count >= self._upload_retry_count:
-                                self._file.seek(0, 0)
-                                raise MaxRetriesExceededError(
-                                    f"Max retries ({self._upload_retry_count}) exceeded while uploading part"
-                                    f" {part_number} of {part_count} for file {filename}.", err)
-
-                        except:
-                            self._file.seek(0, 0)
-                            last_exception = sys.exc_info()[0]
-                            self._logger.error(last_exception)
-                            raise
+    def _upload_parts(self, part_count):
+        try:
+            filename = self._file.name
+            remaining_parts_count = part_count
+            total_page_count = part_count // MAX_PAGE_SIZE + 1
+            if total_page_count > 0:
+                for page_number in range(1, total_page_count + 1):
+                    batch_size = min(remaining_parts_count, MAX_PAGE_SIZE)
+                    page_length = batch_size
+                    remaining_parts_count = remaining_parts_count - batch_size
+                    query_params = {'page_length': page_length, 'page': page_number}
+                    resp = self._client.list(resource_id=self._upload_id, subresource_name='parts',
+                                             query_params=query_params)
+                    body = resp.json_body
+                    upload_links = body['parts']
+                    for part_number in range(1, page_length + 1):
+                        bytes_chunk = self._file.read(self._target_part_size)
+                        if part_number < page_length and len(bytes_chunk) != self._target_part_size:
+                            raise IOError("Failed to read enough bytes")
+                        retry_count = 0
+                        for _ in range(self._upload_retry_count):
+                            try:
+                                self._upload_part(bytes_chunk, part_number, upload_links)
+                                self._logger.debug(
+                                    f"Successfully uploaded part {(page_number - 1) * MAX_PAGE_SIZE + part_number} "
+                                    f"for upload id "
+                                    f"{self._upload_id}")
+                                break
+                            except (DataIntegrityError, PartUploadError, OSError) as err:
+                                self._logger.warning(err)
+                                retry_count = retry_count + 1
+                                self._logger.warning(
+                                    f"Encountered error upload part {(page_number - 1) * MAX_PAGE_SIZE + part_number} "
+                                    f"of {part_count} for file {filename}.")
+                                if retry_count >= self._upload_retry_count:
+                                    self._file.seek(0, 0)
+                                    raise MaxRetriesExceededError(
+                                        f"Max retries ({self._upload_retry_count}) exceeded while uploading part"
+                                        f" {part_number} of {part_count} for file {filename}.", err)
+        except Exception as ex:
+            self._file.seek(0, 0)
+            self._logger.exception(ex)
+            raise
 
     def _upload_part(self, bytes_chunk, part_number, upload_links):
         # Add a S3 server-side checksum validation too if possible.
@@ -157,10 +158,9 @@ class SingleUpload:
                     self._file.seek(0, 0)
                     raise MaxRetriesExceededError(f"Max retries exceeded while uploading file {self._file.name}")
 
-            except:
+            except Exception as ex:
                 self._file.seek(0, 0)
-                last_exception = sys.exc_info()[0]
-                self._logger.error(last_exception)
+                self._logger.exception(ex)
                 raise
 
 
