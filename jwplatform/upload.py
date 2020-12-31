@@ -81,14 +81,15 @@ class MultipartUpload:
                         try:
                             self._upload_part(bytes_chunk, part_number, upload_links)
                             self._logger.debug(
-                                f"Successfully uploaded part {(page_number - 1) * 1000 + part_number} for upload id "
+                                f"Successfully uploaded part {(page_number - 1) * MAX_PAGE_SIZE + part_number} "
+                                f"for upload id "
                                 f"{self._upload_id}")
                             break
                         except (DataIntegrityError, PartUploadError, OSError) as err:
                             self._logger.warning(err)
                             retry_count = retry_count + 1
                             self._logger.warning(
-                                f"Encountered error upload part {(page_number - 1) * 1000 + part_number} of {part_count} for file {filename}.")
+                                f"Encountered error upload part {(page_number - 1) * MAX_PAGE_SIZE + part_number} of {part_count} for file {filename}.")
                             if retry_count >= self._upload_retry_count:
                                 self._file.seek(0, 0)
                                 raise MaxRetriesExceededError(
@@ -136,13 +137,19 @@ class SingleUpload:
 
     def upload(self):
         bytes_chunk = self._file.read()
+        computed_hash = md5(bytes_chunk).hexdigest()
         retry_count = 0
         for _ in range(self._upload_retry_count):
             try:
-                _upload_to_s3(bytes_chunk, self._upload_link)
+                response = _upload_to_s3(bytes_chunk, self._upload_link)
+                returned_hash = response.headers['ETag']
+                if repr(returned_hash) != repr(
+                        f"\"{computed_hash}\""):  # The returned hash is surrounded by '"' character
+                    raise DataIntegrityError(
+                        "The hash of the uploaded file does not match with the hash on the server.")
                 self._logger.debug(f"Successfully uploaded file {self._file.name}.")
                 return
-            except (IOError, PartUploadError, OSError) as err:
+            except (IOError, PartUploadError, DataIntegrityError, OSError) as err:
                 self._logger.warning(err)
                 self._logger.warning(f"Encountered error uploading file {self._file.name}.")
                 retry_count = retry_count + 1

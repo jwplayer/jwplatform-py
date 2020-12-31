@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import http.client
+import logging
+from http.client import RemoteDisconnected
 import json
 import os
 import sys
@@ -8,7 +10,7 @@ import urllib.parse
 from jwplatform import __version__
 from jwplatform.errors import APIError
 from jwplatform.response import APIResponse, ResourceResponse, ResourcesResponse
-from jwplatform.upload import MultipartUpload, SingleUpload, UploadType, MIN_PART_SIZE
+from jwplatform.upload import MultipartUpload, SingleUpload, UploadType, MIN_PART_SIZE, MaxRetriesExceededError
 
 JWPLATFORM_API_HOST = 'api.jwplayer.com'
 JWPLATFORM_API_PORT = 443
@@ -245,7 +247,7 @@ class _MediaClient(_SiteResourceClient):
             query_params=query_params
         )
 
-    def determine_upload_method(self, file, target_part_size) -> str:
+    def _determine_upload_method(self, file, target_part_size) -> str:
         file_size = os.stat(file.name).st_size
         if file_size <= target_part_size:
             return UploadType.direct.value
@@ -257,7 +259,7 @@ class _MediaClient(_SiteResourceClient):
 
         # Determine the upload type - Single or multi-part
         target_part_size = int(kwargs['target_part_size']) if 'target_part_size' in kwargs else MIN_PART_SIZE
-        upload_method = self.determine_upload_method(file, target_part_size)
+        upload_method = self._determine_upload_method(file, target_part_size)
         if not body:
             body = CREATE_MEDIA_PAYLOAD.copy()
 
@@ -284,7 +286,6 @@ class _MediaClient(_SiteResourceClient):
             'upload_method': upload_method
 
         }
-
         return context_dict
 
     def upload(self, file, context_dict: {}, **kwargs):
@@ -335,17 +336,31 @@ class _UploadClient(_ScopedClient):
     def __init__(self, api_secret, base_url='upload.jwplayer.com'):
         client = JWPlatformClient(secret=api_secret, host=base_url)
         super().__init__(client)
+        self._logger = logging.getLogger(self.__class__.__name__)
+
+    def request_with_retry(self, method, path, query_params=None, body=None):
+        http_connection_retry_count = 3
+        retry_count = 0
+        for _ in range(http_connection_retry_count):
+            try:
+                response = self._client.request(method, path, query_params=query_params, body=body)
+                return response
+            except RemoteDisconnected as rd:
+                self._logger.warning(rd)
+                retry_count = retry_count + 1
+                if retry_count >= http_connection_retry_count:
+                    raise
 
     def list(self, resource_id, subresource_name, query_params=None):
         resource_path = self._collection_path.format(resource_id=resource_id)
         resource_path = f"{resource_path}/parts"
-        response = self._client.request(method="GET", path=resource_path, query_params=query_params)
+        response = self.request_with_retry(method="GET", path=resource_path, query_params=query_params)
         return ResourcesResponse.from_client(response, subresource_name, self.__class__)
 
     def complete(self, resource_id, body=None):
         resource_path = self._collection_path.format(resource_id=resource_id)
         resource_path = f"{resource_path}/complete"
-        response = self._client.request(method="PUT", path=resource_path, body=body)
+        response = self.request_with_retry(method="PUT", path=resource_path, body=body)
         return ResourceResponse.from_client(response, self.__class__)
 
 
