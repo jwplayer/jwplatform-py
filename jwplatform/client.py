@@ -2,6 +2,7 @@
 import http.client
 import json
 import os
+import sys
 import urllib.parse
 
 from jwplatform import __version__
@@ -288,7 +289,11 @@ class _MediaClient(_SiteResourceClient):
 
     def upload(self, file, context_dict: {}, **kwargs):
         upload_handler = self._get_upload_handler_for_upload_type(context_dict, file, **kwargs)
-        upload_handler.upload()
+        try:
+            upload_handler.upload()
+        except:
+            file.seek(0, 0)
+            raise
 
     def resume(self, site_id, file, context_dict: {}, **kwargs):
         if not context_dict:
@@ -299,7 +304,11 @@ class _MediaClient(_SiteResourceClient):
             context_dict = self.create_media_for_upload(site_id, file, **kwargs)
 
         upload_handler = self._get_upload_handler_for_upload_type(context_dict, file, **kwargs)
-        upload_handler.upload()
+        try:
+            upload_handler.upload()
+        except:
+            file.seek(0, 0)
+            raise
 
     def _get_upload_handler_for_upload_type(self, context_dict, file, **kwargs):
         upload_method = context_dict['upload_method']

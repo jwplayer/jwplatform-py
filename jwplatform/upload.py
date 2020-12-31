@@ -72,21 +72,23 @@ class MultipartUpload:
                                          query_params=query_params)
                 body = resp.json_body
                 upload_links = body['parts']
-                mini_batch_size = page_length
-                for part_number in range(1, mini_batch_size + 1):
+                for part_number in range(1, page_length + 1):
                     bytes_chunk = self._file.read(self._target_part_size)
-                    if part_number < mini_batch_size and len(bytes_chunk) != self._target_part_size:
+                    if part_number < page_length and len(bytes_chunk) != self._target_part_size:
                         raise IOError("Failed to read enough bytes")
                     retry_count = 0
                     for _ in range(self._upload_retry_count):
                         try:
-                            self._upload_part(bytes_chunk, part_number, upload_links)
+                            # self._upload_part(bytes_chunk, part_number, upload_links)
+                            self._logger.debug(
+                                f"Successfully uploaded part {(page_number - 1) * 1000 + part_number} for upload id "
+                                f"{self._upload_id}")
                             break
                         except (DataIntegrityError, PartUploadError, OSError) as err:
                             self._logger.warning(err)
                             retry_count = retry_count + 1
                             self._logger.warning(
-                                f"Encountered error upload part {part_number} of {part_count} for file {filename}.")
+                                f"Encountered error upload part {(page_number - 1) * 1000 + part_number} of {part_count} for file {filename}.")
                             if retry_count >= self._upload_retry_count:
                                 self._file.seek(0, 0)
                                 raise MaxRetriesExceededError(
@@ -97,7 +99,7 @@ class MultipartUpload:
                             self._file.seek(0, 0)
                             last_exception = sys.exc_info()[0]
                             self._logger.error(last_exception)
-                            raise last_exception
+                            raise
 
     def _upload_part(self, bytes_chunk, part_number, upload_links):
         # Add a S3 server-side checksum validation too if possible.
@@ -118,8 +120,6 @@ class MultipartUpload:
         returned_hash = response.headers['ETag']
         if repr(returned_hash) != repr(f"\"{computed_hash}\""):  # The returned hash is surrounded by '"' character
             raise DataIntegrityError("The hash of the uploaded file does not match with the hash on the server.")
-
-        self._logger.debug(f"Successfully uploaded part {part_number} for upload id {self._upload_id}")
 
     def _mark_upload_completion(self):
         self._client.complete(self._upload_id)
@@ -154,7 +154,7 @@ class SingleUpload:
                 self._file.seek(0, 0)
                 last_exception = sys.exc_info()[0]
                 self._logger.error(last_exception)
-                raise last_exception
+                raise
 
 
 class DataIntegrityError(Exception):
