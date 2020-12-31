@@ -103,26 +103,6 @@ class _ScopedClient:
         self._client = client
 
 
-class _UploadClient(_ScopedClient):
-    _collection_path = "/v1/uploads/{resource_id}"
-
-    def __init__(self, api_secret, base_url='upload.jwplayer.com'):
-        client = JWPlatformClient(secret=api_secret, host=base_url)
-        super().__init__(client)
-
-    def list(self, resource_id, subresource_name, query_params=None):
-        resource_path = self._collection_path.format(resource_id=resource_id)
-        resource_path = f"{resource_path}/parts"
-        response = self._client.request(method="GET", path=resource_path, query_params=query_params)
-        return ResourcesResponse.from_client(response, subresource_name, self.__class__)
-
-    def complete(self, resource_id, body=None):
-        resource_path = self._collection_path.format(resource_id=resource_id)
-        resource_path = f"{resource_path}/complete"
-        response = self._client.request(method="PUT", path=resource_path, body=body)
-        return ResourceResponse.from_client(response, self.__class__)
-
-
 class _ResourceClient(_ScopedClient):
     _resource_name = None
     _id_name = None
@@ -270,7 +250,7 @@ class _MediaClient(_SiteResourceClient):
             return UploadType.direct.value
         return UploadType.multipart.value
 
-    def get_upload_handler(self, site_id, file, body=None, query_params=None, **kwargs):
+    def create_media_for_upload(self, site_id, file, body=None, query_params=None, **kwargs):
         if not kwargs:
             kwargs = {}
 
@@ -291,27 +271,73 @@ class _MediaClient(_SiteResourceClient):
         # Create the media
         resp = self.create(site_id, body, query_params)
 
-        # Upload the file
-        return self._get_upload_handler_for_upload_type(resp, upload_method, file, **kwargs)
+        result = resp.json_body
+        upload_id = result["upload_id"] if 'upload_id' in result else None
+        upload_token = result["upload_token"] if 'upload_token' in result else None
+        direct_link = result["upload_link"] if 'upload_link' in result else None
 
-    def _get_upload_handler_for_upload_type(self, resp, upload_method, file, **kwargs):
+        context_dict = {
+            'upload_id': upload_id,
+            'upload_token': upload_token,
+            'direct_link': direct_link,
+            'upload_method': upload_method
+
+        }
+
+        return context_dict
+
+    def upload(self, file, context_dict: {}, **kwargs):
+        upload_handler = self._get_upload_handler_for_upload_type(context_dict, file, **kwargs)
+        upload_handler.upload()
+
+    def resume(self, site_id, file, context_dict: {}, **kwargs):
+        if not context_dict:
+            raise ValueError("The provided context is None. Cannot resume the upload.")
+        if 'upload_id' not in context_dict:
+            raise ValueError("The provided context is missing the upload_id. Cannot resume the upload.")
+        if 'upload_token' not in context_dict or 'upload_method' not in context_dict:
+            context_dict = self.create_media_for_upload(site_id, file, **kwargs)
+
+        upload_handler = self._get_upload_handler_for_upload_type(context_dict, file, **kwargs)
+        upload_handler.upload()
+
+    def _get_upload_handler_for_upload_type(self, context_dict, file, **kwargs):
+        upload_method = context_dict['upload_method']
         base_url = kwargs['base_url'] if 'base_url' in kwargs else None
         target_part_size = int(kwargs['target_part_size']) if 'target_part_size' in kwargs else MIN_PART_SIZE
         retry_count = int(kwargs['retry_count']) if 'retry_count' in kwargs else RETRY_COUNT
 
         if upload_method == UploadType.direct.value:
-            result = resp.json_body
-            direct_link = result["upload_link"]
+            direct_link = context_dict["direct_link"]
             upload_handler = SingleUpload(direct_link, file, retry_count)
         else:
-            result = resp.json_body
-            upload_id = result["upload_id"]
-            upload_token = result["upload_token"]
+            upload_id = context_dict["upload_id"]
+            upload_token = context_dict["upload_token"]
             upload_client = _UploadClient(api_secret=upload_token, base_url=base_url) \
                 if base_url else _UploadClient(api_secret=upload_token)
             upload_handler = MultipartUpload(upload_client, upload_id, file, target_part_size,
                                              retry_count)
         return upload_handler
+
+
+class _UploadClient(_ScopedClient):
+    _collection_path = "/v1/uploads/{resource_id}"
+
+    def __init__(self, api_secret, base_url='upload.jwplayer.com'):
+        client = JWPlatformClient(secret=api_secret, host=base_url)
+        super().__init__(client)
+
+    def list(self, resource_id, subresource_name, query_params=None):
+        resource_path = self._collection_path.format(resource_id=resource_id)
+        resource_path = f"{resource_path}/parts"
+        response = self._client.request(method="GET", path=resource_path, query_params=query_params)
+        return ResourcesResponse.from_client(response, subresource_name, self.__class__)
+
+    def complete(self, resource_id, body=None):
+        resource_path = self._collection_path.format(resource_id=resource_id)
+        resource_path = f"{resource_path}/complete"
+        response = self._client.request(method="PUT", path=resource_path, body=body)
+        return ResourceResponse.from_client(response, self.__class__)
 
 
 class _WebhookClient(_ResourceClient):

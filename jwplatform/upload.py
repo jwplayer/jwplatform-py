@@ -1,10 +1,10 @@
 import http.client
 import logging
 import os
+import sys
 from enum import Enum
 from hashlib import md5
 from urllib.parse import urlparse
-
 
 MAX_PAGE_SIZE = 1000
 MIN_PART_SIZE = 5 * 1024 * 1024
@@ -53,13 +53,13 @@ class MultipartUpload:
             raise ValueError(f"The given file cannot be divided into more than 10000 parts. Please try increasing the "
                              f"target part size.")
 
-        # Get the part links
-        upload_links = self._get_pre_signed_part_links(part_count, filename)
+        # Upload the parts
+        self._upload_parts(part_count, filename)
 
         # Mark upload as complete
         self._mark_upload_completion()
 
-    def _get_pre_signed_part_links(self, part_count, filename):
+    def _upload_parts(self, part_count, filename):
         remaining_parts_count = part_count
         total_page_count = part_count // MAX_PAGE_SIZE + 1
         if total_page_count > 0:
@@ -82,16 +82,22 @@ class MultipartUpload:
                         try:
                             self._upload_part(bytes_chunk, part_number, upload_links)
                             break
-                        except (DataIntegrityError, PartUploadError) as err:
+                        except (DataIntegrityError, PartUploadError, OSError) as err:
                             self._logger.warning(err)
+                            retry_count = retry_count + 1
+                            self._logger.warning(
+                                f"Encountered error upload part {part_number} of {part_count} for file {filename}.")
                             if retry_count >= self._upload_retry_count:
+                                self._file.seek(0, 0)
                                 raise MaxRetriesExceededError(
                                     f"Max retries ({self._upload_retry_count}) exceeded while uploading part"
                                     f" {part_number} of {part_count} for file {filename}.", err)
-                            self._logger.warning(
-                                f"Encountered error upload part {part_number} of {part_count} for file "
-                                f"{filename}. Retrying.")
-                            retry_count = retry_count + 1
+
+                        except:
+                            self._file.seek(0, 0)
+                            last_exception = sys.exc_info()[0]
+                            self._logger.error(last_exception)
+                            raise last_exception
 
     def _upload_part(self, bytes_chunk, part_number, upload_links):
         # Add a S3 server-side checksum validation too if possible.
@@ -100,7 +106,7 @@ class MultipartUpload:
         # Check if the file has already been uploaded and the hash matches. Return immediately without doing anything
         # if the hash matches.
         upload_hash = upload_links[part_number - 1]["etag"] if "etag" in upload_links[part_number - 1] else None
-        if upload_hash and repr(upload_hash) == repr(f"\"{computed_hash}\""):  # returned hash is surrounded by '"'
+        if upload_hash and repr(upload_hash) == repr(f"{computed_hash}"):  # returned hash is not surrounded by '"'
             return
 
         if not upload_links[part_number - 1]["upload_link"]:
@@ -134,13 +140,21 @@ class SingleUpload:
         for _ in range(self._upload_retry_count):
             try:
                 _upload_to_s3(bytes_chunk, self._upload_link)
+                self._logger.debug(f"Successfully uploaded file {self._file.name}.")
                 return
-            except (IOError, PartUploadError):
+            except (IOError, PartUploadError, OSError) as err:
+                self._logger.warning(err)
                 self._logger.warning(f"Encountered error uploading file {self._file.name}.")
                 retry_count = retry_count + 1
+                if retry_count >= self._upload_retry_count:
+                    self._file.seek(0, 0)
+                    raise MaxRetriesExceededError(f"Max retries exceeded while uploading file {self._file.name}")
 
-        if retry_count >= self._upload_retry_count:
-            raise MaxRetriesExceededError(f"Max retries exceeded while uploading file {self._file.name}")
+            except:
+                self._file.seek(0, 0)
+                last_exception = sys.exc_info()[0]
+                self._logger.error(last_exception)
+                raise last_exception
 
 
 class DataIntegrityError(Exception):
