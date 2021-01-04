@@ -67,25 +67,26 @@ class MultipartUpload:
             if total_page_count > 0:
                 for page_number in range(1, total_page_count + 1):
                     batch_size = min(remaining_parts_count, MAX_PAGE_SIZE)
-                    page_length = batch_size
+                    page_length = MAX_PAGE_SIZE
                     remaining_parts_count = remaining_parts_count - batch_size
                     query_params = {'page_length': page_length, 'page': page_number}
+                    self._logger.debug(f'calling list method with page_number:{page_number} and page_length:{page_length}.')
                     resp = self._client.list(resource_id=self._upload_id, subresource_name='parts',
                                              query_params=query_params)
                     body = resp.json_body
                     upload_links = body['parts']
-                    for part_number in range(1, page_length + 1):
+                    for part_number in range(1, batch_size + 1):
                         bytes_chunk = self._file.read(self._target_part_size)
-                        if part_number < page_length and len(bytes_chunk) != self._target_part_size:
+                        if part_number < batch_size and len(bytes_chunk) != self._target_part_size:
                             raise IOError("Failed to read enough bytes")
                         retry_count = 0
                         for _ in range(self._upload_retry_count):
                             try:
                                 self._upload_part(bytes_chunk, part_number, upload_links)
+
                                 self._logger.debug(
                                     f"Successfully uploaded part {(page_number - 1) * MAX_PAGE_SIZE + part_number} "
-                                    f"for upload id "
-                                    f"{self._upload_id}")
+                                    f"for upload id {self._upload_id}")
                                 break
                             except (DataIntegrityError, PartUploadError, OSError) as err:
                                 self._logger.warning(err)
@@ -104,16 +105,17 @@ class MultipartUpload:
             raise
 
     def _upload_part(self, bytes_chunk, part_number, upload_links):
-        # Add a S3 server-side checksum validation too if possible.
         computed_hash = md5(bytes_chunk).hexdigest()
 
         # Check if the file has already been uploaded and the hash matches. Return immediately without doing anything
         # if the hash matches.
         upload_hash = upload_links[part_number - 1]["etag"] if "etag" in upload_links[part_number - 1] else None
+        self._logger.debug(f'Part number {part_number}:{upload_hash}')
         if upload_hash and repr(upload_hash) == repr(f"{computed_hash}"):  # returned hash is not surrounded by '"'
             return
 
-        if not upload_links[part_number - 1]["upload_link"]:
+        if "upload_link" not in upload_links[part_number - 1]:
+            self._logger.debug(f"Invalid upload link for part {part_number}.")
             raise KeyError(f"Invalid upload link for part {part_number}.")
 
         upload_link = upload_links[part_number - 1]["upload_link"]
