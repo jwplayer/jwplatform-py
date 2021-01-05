@@ -252,6 +252,7 @@ CREATE_MEDIA_PAYLOAD = {
 class _MediaClient(_SiteResourceClient):
     _resource_name = "media"
     _id_name = "media_id"
+    _logger = logging.getLogger(__name__)
 
     def reupload(self, site_id, body, query_params=None, **kwargs):
         resource_id = kwargs[self._id_name]
@@ -319,7 +320,6 @@ class _MediaClient(_SiteResourceClient):
             raise ValueError("The provided context is missing the upload_id. Cannot resume the upload.")
         if 'upload_token' not in context_dict or 'upload_method' not in context_dict:
             context_dict = self.create_media_for_upload(site_id, file, **kwargs)
-
         upload_handler = self._get_upload_handler_for_upload_type(context_dict, file, **kwargs)
         try:
             upload_handler.upload()

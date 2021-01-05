@@ -30,6 +30,14 @@ def _upload_to_s3(bytes_chunk, upload_link):
     raise S3UploadError(response)
 
 
+def _get_bytes_hash(bytes_chunk):
+    return md5(bytes_chunk).hexdigest()
+
+
+def _get_returned_hash(response):
+    return response.headers['ETag']
+
+
 class MultipartUpload:
 
     def __init__(self, client, upload_id: str, file, target_part_size, retry_count):
@@ -70,7 +78,8 @@ class MultipartUpload:
                     page_length = MAX_PAGE_SIZE
                     remaining_parts_count = remaining_parts_count - batch_size
                     query_params = {'page_length': page_length, 'page': page_number}
-                    self._logger.debug(f'calling list method with page_number:{page_number} and page_length:{page_length}.')
+                    self._logger.debug(
+                        f'calling list method with page_number:{page_number} and page_length:{page_length}.')
                     resp = self._client.list(resource_id=self._upload_id, subresource_name='parts',
                                              query_params=query_params)
                     body = resp.json_body
@@ -86,7 +95,7 @@ class MultipartUpload:
 
                                 self._logger.debug(
                                     f"Successfully uploaded part {(page_number - 1) * MAX_PAGE_SIZE + part_number} "
-                                    f"for upload id {self._upload_id}")
+                                    f"of {part_count} for upload id {self._upload_id}")
                                 break
                             except (DataIntegrityError, PartUploadError, OSError) as err:
                                 self._logger.warning(err)
@@ -105,23 +114,24 @@ class MultipartUpload:
             raise
 
     def _upload_part(self, bytes_chunk, part_number, upload_links):
-        computed_hash = md5(bytes_chunk).hexdigest()
+        computed_hash = _get_bytes_hash(bytes_chunk)
 
         # Check if the file has already been uploaded and the hash matches. Return immediately without doing anything
         # if the hash matches.
         upload_hash = upload_links[part_number - 1]["etag"] if "etag" in upload_links[part_number - 1] else None
-        self._logger.debug(f'Part number {part_number}:{upload_hash}')
+        # self._logger.debug(f'Part number {part_number}:{upload_hash}')
         if upload_hash and repr(upload_hash) == repr(f"{computed_hash}"):  # returned hash is not surrounded by '"'
+            self._logger.debug(f"Part number {part_number} already uploaded. Skipping")
             return
 
         if "upload_link" not in upload_links[part_number - 1]:
-            self._logger.debug(f"Invalid upload link for part {part_number}.")
+            # self._logger.debug(f"Invalid upload link for part {part_number}.")
             raise KeyError(f"Invalid upload link for part {part_number}.")
 
         upload_link = upload_links[part_number - 1]["upload_link"]
         response = _upload_to_s3(bytes_chunk, upload_link)
 
-        returned_hash = response.headers['ETag']
+        returned_hash = _get_returned_hash(response)
         if repr(returned_hash) != repr(f"\"{computed_hash}\""):  # The returned hash is surrounded by '"' character
             raise DataIntegrityError("The hash of the uploaded file does not match with the hash on the server.")
 
@@ -140,12 +150,12 @@ class SingleUpload:
 
     def upload(self):
         bytes_chunk = self._file.read()
-        computed_hash = md5(bytes_chunk).hexdigest()
+        computed_hash = _get_bytes_hash(bytes_chunk)
         retry_count = 0
         for _ in range(self._upload_retry_count):
             try:
                 response = _upload_to_s3(bytes_chunk, self._upload_link)
-                returned_hash = response.headers['ETag']
+                returned_hash = _get_returned_hash(response)
                 if repr(returned_hash) != repr(
                         f"\"{computed_hash}\""):  # The returned hash is surrounded by '"' character
                     raise DataIntegrityError(
@@ -154,6 +164,7 @@ class SingleUpload:
                 return
             except (IOError, PartUploadError, DataIntegrityError, OSError) as err:
                 self._logger.warning(err)
+                self._logger.exception(err, stack_info=True)
                 self._logger.warning(f"Encountered error uploading file {self._file.name}.")
                 retry_count = retry_count + 1
                 if retry_count >= self._upload_retry_count:
@@ -164,6 +175,8 @@ class SingleUpload:
                 self._file.seek(0, 0)
                 self._logger.exception(ex)
                 raise
+
+
 
 
 class DataIntegrityError(Exception):
