@@ -156,7 +156,6 @@ class SingleUpload:
             try:
                 response = _upload_to_s3(bytes_chunk, self._upload_link)
                 returned_hash = _get_returned_hash(response)
-                print(returned_hash)
                 if repr(returned_hash) != repr(
                         f"\"{computed_hash}\""):  # The returned hash is surrounded by '"' character
                     raise DataIntegrityError(
