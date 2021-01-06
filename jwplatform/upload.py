@@ -121,7 +121,7 @@ class MultipartUpload:
 
         # Check if the file has already been uploaded and the hash matches. Return immediately without doing anything
         # if the hash matches.
-        upload_hash = upload_links[part_number - 1]["etag"] if "etag" in upload_links[part_number - 1] else None
+        upload_hash = self._get_uploaded_part_hash(part_number, upload_links)
         if upload_hash and repr(upload_hash) == repr(f"{computed_hash}"):  # returned hash is not surrounded by '"'
             self._logger.debug(f"Part number {part_number} already uploaded. Skipping")
             return
@@ -135,6 +135,10 @@ class MultipartUpload:
         returned_hash = _get_returned_hash(response)
         if repr(returned_hash) != repr(f"\"{computed_hash}\""):  # The returned hash is surrounded by '"' character
             raise DataIntegrityError("The hash of the uploaded file does not match with the hash on the server.")
+
+    def _get_uploaded_part_hash(self, part_number, upload_links):
+        upload_hash = upload_links[part_number - 1]["etag"] if "etag" in upload_links[part_number - 1] else None
+        return upload_hash
 
     def _mark_upload_completion(self):
         self._client.complete(self._upload_id)
