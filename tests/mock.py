@@ -75,10 +75,15 @@ class JWPlatformMock(HttpApiMock):
             operation_id='createMedia',
             match_pattern=b'^POST /v2/sites/(?P<site_id>[A-Za-z0-9]{8}?)/media/',
             response=lambda _: (200,
-                                {"upload_id": "upload_id",
+                                {"upload_id": "uploADid",
                                  "upload_token": "upload_token",
                                  "upload_link": "http://s3server/upload-link",
                                  "upload_method": "upload_method"}
                                 )
+        ),
+        HttpApiMockEndpoint(
+            operation_id='completeUpload',
+            match_pattern=b'^PUT /v1/uploads/(?P<upload_id>[A-Za-z0-9]{8}?)/complete',
+            response=lambda _: (202, {})
         )
     ]

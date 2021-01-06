@@ -10,7 +10,8 @@ import urllib.parse
 from jwplatform import __version__
 from jwplatform.errors import APIError
 from jwplatform.response import APIResponse, ResourceResponse, ResourcesResponse
-from jwplatform.upload import MultipartUpload, SingleUpload, UploadType, MIN_PART_SIZE, MaxRetriesExceededError
+from jwplatform.upload import MultipartUpload, SingleUpload, UploadType, MIN_PART_SIZE, MaxRetriesExceededError, \
+    UPLOAD_BASE_URL
 
 JWPLATFORM_API_HOST = 'api.jwplayer.com'
 JWPLATFORM_API_PORT = 443
@@ -329,7 +330,7 @@ class _MediaClient(_SiteResourceClient):
 
     def _get_upload_handler_for_upload_type(self, context_dict, file, **kwargs):
         upload_method = context_dict['upload_method']
-        base_url = kwargs['base_url'] if 'base_url' in kwargs else None
+        base_url = kwargs['base_url'] if 'base_url' in kwargs else UPLOAD_BASE_URL
         target_part_size = int(kwargs['target_part_size']) if 'target_part_size' in kwargs else MIN_PART_SIZE
         retry_count = int(kwargs['retry_count']) if 'retry_count' in kwargs else RETRY_COUNT
 
