@@ -25,8 +25,6 @@ def _get_parts_responses(part_count):
 
 
 class TestUploads(TestCase):
-    # file_content_mock = b'some bytes'
-    # file_hash = md5(file_content_mock).hexdigest()
 
     @patch("os.stat")
     def test_upload_method_is_direct_when_file_size_is_small(self, os_stat):
@@ -111,6 +109,8 @@ class TestUploads(TestCase):
                     with JWPlatformMock() as mock_api, S3Mock() as s3_api:
                         context_dict = media_client_instance.create_media_for_upload(site_id, file, **kwargs)
                         media_client_instance.upload(file, context_dict, **kwargs)
+                        s3_api.uploadToS3.request_mock.assert_not_called()
+                        mock_api.completeUpload.request_mock.assert_not_called()
 
     @patch("os.stat")
     @patch("jwplatform.upload._get_bytes_hash")
@@ -193,6 +193,7 @@ class TestUploads(TestCase):
                     context_dict = media_client_instance.create_media_for_upload(site_id, file, **kwargs)
                     with self.assertRaises(MaxRetriesExceededError):
                         media_client_instance.upload(file, context_dict, **kwargs)
+                    mock_api.completeUpload.request_mock.assert_not_called()
 
     @patch("os.stat")
     @patch("jwplatform.upload._get_bytes_hash")
@@ -277,15 +278,14 @@ class TestUploads(TestCase):
             with open(file_absolute_path, "rb") as file:
                 kwargs = {'target_part_size': 5 * 1024 * 1024, 'retry_count': 3, 'base_url': JWPLATFORM_API_HOST}
                 with JWPlatformMock() as mock_api, S3Mock() as s3_api:
-                    # context_dict = media_client_instance.create_media_for_upload(site_id, file, **kwargs)
                     context_dict = {'upload_id': 'NL3OL1JB', 'upload_method': UploadType.multipart.value,
                                     'upload_token': 'upload_token'}
                     media_client_instance.resume(site_id, file, context_dict, **kwargs)
                     mock_file.assert_called_with(file_absolute_path, "rb")
-                    self.assertEqual(mock_api.createMedia.request_mock.call_count, 0)
+                    mock_api.createMedia.request_mock.assert_not_called()
                     mock_api.completeUpload.request_mock.assert_called_once()
                     retrieve_part_links.assert_called_once()
-                    self.assertEqual(s3_api.uploadToS3.request_mock.call_count, 0)
+                    s3_api.uploadToS3.request_mock.assert_not_called()
 
     @patch("os.stat")
     @patch("jwplatform.upload._get_bytes_hash")
@@ -320,6 +320,7 @@ class TestUploads(TestCase):
                     self.assertTrue(context_dict['upload_method'] == UploadType.multipart.value)
                     with self.assertRaises(MaxRetriesExceededError):
                         media_client_instance.upload(file, context_dict, **kwargs)
+                    mock_api.completeUpload.request_mock.assert_not_called()
 
     @patch("os.stat")
     @patch("jwplatform.upload._get_bytes_hash")
@@ -354,3 +355,4 @@ class TestUploads(TestCase):
                     self.assertTrue(context_dict['upload_method'] == UploadType.multipart.value)
                     with self.assertRaises(Exception):
                         media_client_instance.upload(file, context_dict, **kwargs)
+                    mock_api.completeUpload.request_mock.assert_not_called()
