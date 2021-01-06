@@ -1,5 +1,6 @@
 import http.client
 import logging
+import math
 import os
 import sys
 from enum import Enum
@@ -56,7 +57,7 @@ class MultipartUpload:
 
         filename = self._file.name
         file_size = os.stat(filename).st_size
-        part_count = file_size // self._target_part_size + 1
+        part_count = math.ceil(file_size / self._target_part_size)
 
         if part_count > 10000:
             raise ValueError(f"The given file cannot be divided into more than 10000 parts. Please try increasing the "
@@ -72,40 +73,40 @@ class MultipartUpload:
         try:
             filename = self._file.name
             remaining_parts_count = part_count
-            total_page_count = part_count // MAX_PAGE_SIZE + 1
-            if total_page_count > 0:
-                for page_number in range(1, total_page_count + 1):
-                    batch_size = min(remaining_parts_count, MAX_PAGE_SIZE)
-                    page_length = MAX_PAGE_SIZE
-                    remaining_parts_count = remaining_parts_count - batch_size
-                    query_params = {'page_length': page_length, 'page': page_number}
-                    self._logger.debug(
-                        f'calling list method with page_number:{page_number} and page_length:{page_length}.')
-                    body = self._retrieve_part_links(query_params)
-                    upload_links = body['parts']
-                    for part_number in range(1, batch_size + 1):
-                        bytes_chunk = self._file.read(self._target_part_size)
-                        if part_number < batch_size and len(bytes_chunk) != self._target_part_size:
-                            raise IOError("Failed to read enough bytes")
-                        retry_count = 0
-                        for _ in range(self._upload_retry_count):
-                            try:
-                                self._upload_part(bytes_chunk, part_number, upload_links)
-                                self._logger.debug(
-                                    f"Successfully uploaded part {(page_number - 1) * MAX_PAGE_SIZE + part_number} "
-                                    f"of {part_count} for upload id {self._upload_id}")
-                                break
-                            except (DataIntegrityError, PartUploadError, OSError) as err:
-                                self._logger.warning(err)
-                                retry_count = retry_count + 1
-                                self._logger.warning(
-                                    f"Encountered error upload part {(page_number - 1) * MAX_PAGE_SIZE + part_number} "
-                                    f"of {part_count} for file {filename}.")
-                                if retry_count >= self._upload_retry_count:
-                                    self._file.seek(0, 0)
-                                    raise MaxRetriesExceededError(
-                                        f"Max retries ({self._upload_retry_count}) exceeded while uploading part"
-                                        f" {part_number} of {part_count} for file {filename}.", err)
+            total_page_count = math.ceil(part_count / MAX_PAGE_SIZE)
+            for page_number in range(1, total_page_count + 1):
+                batch_size = min(remaining_parts_count, MAX_PAGE_SIZE)
+                page_length = MAX_PAGE_SIZE
+                remaining_parts_count = remaining_parts_count - batch_size
+                query_params = {'page_length': page_length, 'page': page_number}
+                self._logger.debug(
+                    f'calling list method with page_number:{page_number} and page_length:{page_length}.')
+                body = self._retrieve_part_links(query_params)
+                upload_links = body['parts']
+                for returned_part in upload_links[:batch_size]:
+                    part_number = returned_part['id']
+                    bytes_chunk = self._file.read(self._target_part_size)
+                    if part_number < batch_size and len(bytes_chunk) != self._target_part_size:
+                        raise IOError("Failed to read enough bytes")
+                    retry_count = 0
+                    for _ in range(self._upload_retry_count):
+                        try:
+                            self._upload_part(bytes_chunk, part_number, returned_part)
+                            self._logger.debug(
+                                f"Successfully uploaded part {(page_number - 1) * MAX_PAGE_SIZE + part_number} "
+                                f"of {part_count} for upload id {self._upload_id}")
+                            break
+                        except (DataIntegrityError, PartUploadError, OSError) as err:
+                            self._logger.warning(err)
+                            retry_count = retry_count + 1
+                            self._logger.warning(
+                                f"Encountered error upload part {(page_number - 1) * MAX_PAGE_SIZE + part_number} "
+                                f"of {part_count} for file {filename}.")
+                            if retry_count >= self._upload_retry_count:
+                                self._file.seek(0, 0)
+                                raise MaxRetriesExceededError(
+                                    f"Max retries ({self._upload_retry_count}) exceeded while uploading part"
+                                    f" {part_number} of {part_count} for file {filename}.") from err
         except Exception as ex:
             self._file.seek(0, 0)
             self._logger.exception(ex)
@@ -116,28 +117,28 @@ class MultipartUpload:
                                  query_params=query_params)
         return resp.json_body
 
-    def _upload_part(self, bytes_chunk, part_number, upload_links):
+    def _upload_part(self, bytes_chunk, part_number, returned_part):
         computed_hash = _get_bytes_hash(bytes_chunk)
 
         # Check if the file has already been uploaded and the hash matches. Return immediately without doing anything
         # if the hash matches.
-        upload_hash = self._get_uploaded_part_hash(part_number, upload_links)
+        upload_hash = self._get_uploaded_part_hash(returned_part)
         if upload_hash and repr(upload_hash) == repr(f"{computed_hash}"):  # returned hash is not surrounded by '"'
             self._logger.debug(f"Part number {part_number} already uploaded. Skipping")
             return
 
-        if "upload_link" not in upload_links[part_number - 1]:
+        if "upload_link" not in returned_part:
             raise KeyError(f"Invalid upload link for part {part_number}.")
 
-        upload_link = upload_links[part_number - 1]["upload_link"]
-        response = _upload_to_s3(bytes_chunk, upload_link)
+        returned_part = returned_part["upload_link"]
+        response = _upload_to_s3(bytes_chunk, returned_part)
 
         returned_hash = _get_returned_hash(response)
         if repr(returned_hash) != repr(f"\"{computed_hash}\""):  # The returned hash is surrounded by '"' character
             raise DataIntegrityError("The hash of the uploaded file does not match with the hash on the server.")
 
-    def _get_uploaded_part_hash(self, part_number, upload_links):
-        upload_hash = upload_links[part_number - 1]["etag"] if "etag" in upload_links[part_number - 1] else None
+    def _get_uploaded_part_hash(self, upload_link):
+        upload_hash = upload_link.get("etag")
         return upload_hash
 
     def _mark_upload_completion(self):

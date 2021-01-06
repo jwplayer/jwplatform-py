@@ -293,9 +293,9 @@ class _MediaClient(_SiteResourceClient):
         resp = self.create(site_id, body, query_params)
 
         result = resp.json_body
-        upload_id = result["upload_id"] if 'upload_id' in result else None
-        upload_token = result["upload_token"] if 'upload_token' in result else None
-        direct_link = result["upload_link"] if 'upload_link' in result else None
+        upload_id = result.get("upload_id")
+        upload_token = result.get("upload_token")
+        direct_link = result.get("upload_link")
 
         context_dict = {
             'upload_id': upload_id,
