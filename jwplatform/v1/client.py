@@ -89,11 +89,22 @@ class Client:
         _params['api_kit'] = 'py-{}{}'.format(
             __version__, '-{}'.format(self._agent) if self._agent else '')
 
+        # Collect params to a list
+        # The reason using a list instead of a dict is
+        # to allow the same key multiple times with the different values in the query string
+        params_for_sbs = list()
+        for key, value in sorted(_params.items()):
+            key = quote(str(key).encode('utf-8'), safe='~')
+            if isinstance(value, list):
+               for item in value:
+                   item = quote(str(item).encode('utf-8'), safe='~')
+                   params_for_sbs.append(f"{key}={item}")
+            else:
+                value = quote(str(value).encode('utf-8'), safe='~')
+                params_for_sbs.append(f"{key}={value}")
+
         # Construct Signature Base String
-        sbs = '&'.join(['{}={}'.format(
-            quote(str(key).encode('utf-8'), safe='~'),
-            quote(str(value).encode('utf-8'), safe='~')
-        ) for key, value in sorted(_params.items())])
+        sbs = "&".join(params_for_sbs)
 
         # Add signature to the _params dict
         _params['api_signature'] = hashlib.sha1(
