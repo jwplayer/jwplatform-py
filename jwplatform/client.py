@@ -11,7 +11,7 @@ from jwplatform import __version__
 from jwplatform.errors import APIError
 from jwplatform.response import APIResponse, ResourceResponse, ResourcesResponse
 from jwplatform.upload import MultipartUpload, SingleUpload, UploadType, MIN_PART_SIZE, MaxRetriesExceededError, \
-    UPLOAD_BASE_URL
+    UPLOAD_BASE_URL, UploadContext
 
 JWPLATFORM_API_HOST = 'api.jwplayer.com'
 JWPLATFORM_API_PORT = 443
@@ -297,53 +297,50 @@ class _MediaClient(_SiteResourceClient):
         upload_token = result.get("upload_token")
         direct_link = result.get("upload_link")
 
-        context_dict = {
-            'upload_id': upload_id,
-            'upload_token': upload_token,
-            'direct_link': direct_link,
-            'upload_method': upload_method
+        upload_context = UploadContext(upload_method, upload_id, upload_token, direct_link)
+        return upload_context
 
-        }
-        return context_dict
-
-    def upload(self, file, context_dict: {}, **kwargs):
-        upload_handler = self._get_upload_handler_for_upload_type(context_dict, file, **kwargs)
+    def upload(self, file, context: UploadContext, **kwargs):
+        upload_handler = self._get_upload_handler_for_upload_type(context, file, **kwargs)
         try:
             upload_handler.upload()
         except Exception:
             file.seek(0, 0)
             raise
 
-    def resume(self, site_id, file, context_dict: {}, **kwargs):
-        if not context_dict:
+    def resume(self, site_id, file, upload_context: UploadContext, **kwargs):
+        if not upload_context:
             raise ValueError("The provided context is None. Cannot resume the upload.")
-        if 'upload_id' not in context_dict:
-            raise ValueError("The provided context is missing the upload_id. Cannot resume the upload.")
-        if 'upload_token' not in context_dict or 'upload_method' not in context_dict:
-            context_dict = self.create_media_for_upload(site_id, file, **kwargs)
-        upload_handler = self._get_upload_handler_for_upload_type(context_dict, file, **kwargs)
+        if not self._can_resume(upload_context):
+            upload_context = self.create_media_for_upload(site_id, file, **kwargs)
+        upload_handler = self._get_upload_handler_for_upload_type(upload_context, file, **kwargs)
         try:
             upload_handler.upload()
         except Exception:
             file.seek(0, 0)
             raise
 
-    def _get_upload_handler_for_upload_type(self, context_dict, file, **kwargs):
-        upload_method = context_dict['upload_method']
+    def _can_resume(self, upload_context: UploadContext):
+        return upload_context.upload_token is not None \
+               and upload_context.upload_method == UploadType.multipart.value \
+               and upload_context.upload_id is not None
+
+    def _get_upload_handler_for_upload_type(self, context: UploadContext, file, **kwargs):
+        upload_method = context.upload_method
         base_url = kwargs['base_url'] if 'base_url' in kwargs else UPLOAD_BASE_URL
         target_part_size = int(kwargs['target_part_size']) if 'target_part_size' in kwargs else MIN_PART_SIZE
         retry_count = int(kwargs['retry_count']) if 'retry_count' in kwargs else RETRY_COUNT
 
         if upload_method == UploadType.direct.value:
-            direct_link = context_dict["direct_link"]
-            upload_handler = SingleUpload(direct_link, file, retry_count)
+            direct_link = context.direct_link
+            upload_handler = SingleUpload(direct_link, file, retry_count, context)
         else:
-            upload_id = context_dict["upload_id"]
-            upload_token = context_dict["upload_token"]
+            upload_id = context.upload_id
+            upload_token = context.upload_token
             upload_client = _UploadClient(api_secret=upload_token, base_url=base_url) \
                 if base_url else _UploadClient(api_secret=upload_token)
             upload_handler = MultipartUpload(upload_client, upload_id, file, target_part_size,
-                                             retry_count)
+                                             retry_count, context)
         return upload_handler
 
 

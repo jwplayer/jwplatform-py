@@ -17,6 +17,47 @@ class UploadType(Enum):
     multipart = "multipart"
 
 
+class UploadContext:
+
+    def __init__(self, upload_method, upload_id, upload_token, direct_link):
+        self._upload_method = upload_method
+        self._upload_id = upload_id
+        self._upload_token = upload_token
+        self._direct_link = direct_link
+
+    @property
+    def upload_method(self):
+        return self._upload_method
+
+    @upload_method.setter
+    def upload_method(self, value):
+        self._upload_method = value
+
+    @property
+    def upload_id(self):
+        return self._upload_id
+
+    @upload_id.setter
+    def upload_id(self, value):
+        self._upload_id = value
+
+    @property
+    def upload_token(self):
+        return self._upload_token
+
+    @upload_token.setter
+    def upload_token(self, value):
+        self._upload_token = value
+
+    @property
+    def direct_link(self):
+        return self._direct_link
+
+    @direct_link.setter
+    def direct_link(self, value):
+        self._direct_link = value
+
+
 def _upload_to_s3(bytes_chunk, upload_link):
     url_metadata = urlparse(upload_link)
     if url_metadata.scheme in 'https':
@@ -42,13 +83,22 @@ def _get_returned_hash(response):
 
 class MultipartUpload:
 
-    def __init__(self, client, upload_id: str, file, target_part_size, retry_count):
+    def __init__(self, client, upload_id: str, file, target_part_size, retry_count, upload_context: UploadContext):
         self._upload_id = upload_id
         self._target_part_size = target_part_size
         self._upload_retry_count = retry_count
         self._file = file
         self._client = client
         self._logger = logging.getLogger(self.__class__.__name__)
+        self._upload_context = upload_context
+
+    @property
+    def upload_context(self):
+        return self._upload_context
+
+    @upload_context.setter
+    def upload_context(self, value):
+        self._upload_context = value
 
     def upload(self):
 
@@ -123,9 +173,12 @@ class MultipartUpload:
         # Check if the file has already been uploaded and the hash matches. Return immediately without doing anything
         # if the hash matches.
         upload_hash = self._get_uploaded_part_hash(returned_part)
-        if upload_hash and repr(upload_hash) == repr(f"{computed_hash}"):  # returned hash is not surrounded by '"'
+        if upload_hash and (repr(upload_hash) == repr(f"{computed_hash}")):  # returned hash is not surrounded by '"'
             self._logger.debug(f"Part number {part_number} already uploaded. Skipping")
             return
+        elif upload_hash:
+            raise FileExistsError(f'The file part {part_number} has been uploaded but the hash of the uploaded part '
+                                  f'does not match the hash of the current part read. Aborting.')
 
         if "upload_link" not in returned_part:
             raise KeyError(f"Invalid upload link for part {part_number}.")
@@ -148,13 +201,23 @@ class MultipartUpload:
 
 class SingleUpload:
 
-    def __init__(self, upload_link, file, retry_count):
+    def __init__(self, upload_link, file, retry_count, upload_context: UploadContext):
         self._upload_link = upload_link
         self._upload_retry_count = retry_count
         self._file = file
         self._logger = logging.getLogger(self.__class__.__name__)
+        self._upload_context = upload_context
+
+    @property
+    def upload_context(self):
+        return self._upload_context
+
+    @upload_context.setter
+    def upload_context(self, value):
+        self._upload_context = value
 
     def upload(self):
+        self._logger.debug(f"Starting to upload file:{self._file.name}")
         bytes_chunk = self._file.read()
         computed_hash = _get_bytes_hash(bytes_chunk)
         retry_count = 0
