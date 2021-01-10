@@ -390,3 +390,4 @@ class TestUploads(TestCase):
                     media_client_instance.upload(file, upload_context, **kwargs)
                 mock_api.completeUpload.request_mock.assert_not_called()
                 mock_file.assert_called_with(file_absolute_path, "rb")
+                s3_upload_response.assert_called_once()
