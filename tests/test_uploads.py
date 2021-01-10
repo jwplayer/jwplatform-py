@@ -14,8 +14,7 @@ import logging
 
 # from .mock import JWPlatformMock
 from jwplatform.upload import UploadType, MaxRetriesExceededError, S3UploadError, PartUploadError, UploadContext
-from tests.mock import JWPlatformMock
-from tests.s3mock import S3Mock
+from tests.mock import JWPlatformMock, S3Mock
 
 
 def _get_parts_responses(part_count):
@@ -28,6 +27,7 @@ def _get_parts_responses(part_count):
 class TestUploads(TestCase):
     file_content_mock_data_simple = b'some bytes'
     file_content_mock_data_large = b'some bytes' * 5 * 1024 * 1024
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
     @patch("os.stat")
     @patch("builtins.open")
@@ -37,11 +37,10 @@ class TestUploads(TestCase):
         client = JWPlatformClient()
         media_client_instance = client.Media
         file_absolute_path = "mock_file_path"
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         with open(file_absolute_path, "rb") as file:
             kwargs = {'target_part_size': 10 * 1024 * 1024, 'retry_count': 10}
             with JWPlatformMock():
-                upload_context = media_client_instance.create_media_for_upload(site_id, file, **kwargs)
+                upload_context = media_client_instance.create_media_and_get_upload_context(site_id, file, **kwargs)
                 self.assertTrue(upload_context.upload_method == UploadType.direct.value)
                 mock_file.assert_called_with(file_absolute_path, "rb")
                 os_stat.assert_called_once()
@@ -54,11 +53,10 @@ class TestUploads(TestCase):
         client = JWPlatformClient()
         media_client_instance = client.Media
         file_absolute_path = "mock_file_path"
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         with open(file_absolute_path, "rb") as file:
             kwargs = {'target_part_size': 10 * 1024 * 1024, 'retry_count': 10}
             with JWPlatformMock() as mock_api:
-                upload_context = media_client_instance.create_media_for_upload(site_id, file, **kwargs)
+                upload_context = media_client_instance.create_media_and_get_upload_context(site_id, file, **kwargs)
                 self.assertTrue(upload_context.upload_method == UploadType.multipart.value)
                 mock_file.assert_called_with(file_absolute_path, "rb")
                 os_stat.assert_called_once()
@@ -78,11 +76,10 @@ class TestUploads(TestCase):
         client = JWPlatformClient()
         media_client_instance = client.Media
         file_absolute_path = "mock_file_path"
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         with open(file_absolute_path, "rb") as file:
             kwargs = {'target_part_size': 10 * 1024 * 1024, 'retry_count': 1}
             with JWPlatformMock() as mock_api, S3Mock() as s3_api:
-                upload_context = media_client_instance.create_media_for_upload(site_id, file, **kwargs)
+                upload_context = media_client_instance.create_media_and_get_upload_context(site_id, file, **kwargs)
                 media_client_instance.upload(file, upload_context, **kwargs)
                 self.assertTrue(upload_context.upload_method == UploadType.direct.value)
                 mock_file.assert_called_with(file_absolute_path, "rb")
@@ -103,12 +100,11 @@ class TestUploads(TestCase):
         client = JWPlatformClient()
         media_client_instance = client.Media
         file_absolute_path = "mock_file_path"
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         with self.assertRaises(MaxRetriesExceededError):
             with open(file_absolute_path, "rb") as file:
                 kwargs = {'target_part_size': 10 * 1024 * 1024, 'retry_count': 1}
                 with JWPlatformMock() as mock_api, S3Mock() as s3_api:
-                    upload_context = media_client_instance.create_media_for_upload(site_id, file, **kwargs)
+                    upload_context = media_client_instance.create_media_and_get_upload_context(site_id, file, **kwargs)
                     media_client_instance.upload(file, upload_context, **kwargs)
                     s3_api.uploadToS3.request_mock.assert_not_called()
                     mock_api.completeUpload.request_mock.assert_not_called()
@@ -124,16 +120,14 @@ class TestUploads(TestCase):
         get_bytes_hash.return_value = file_hash
         get_returned_hash.side_effect = ['wrong-hash', 'wrong-hash', f'\"{file_hash}\"']
         os_stat.return_value.st_size = 5 * 1024 * 1024
-        # with patch("builtins.open", mock_open(read_data=file_content_mock)) as mock_file:
         site_id = 'siteDEid'
         client = JWPlatformClient()
         media_client_instance = client.Media
         file_absolute_path = "mock_file_path"
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         with open(file_absolute_path, "rb") as file:
             kwargs = {'target_part_size': 10 * 1024 * 1024, 'retry_count': 3}
             with JWPlatformMock() as mock_api, S3Mock() as s3_api:
-                upload_context = media_client_instance.create_media_for_upload(site_id, file, **kwargs)
+                upload_context = media_client_instance.create_media_and_get_upload_context(site_id, file, **kwargs)
                 media_client_instance.upload(file, upload_context, **kwargs)
                 self.assertTrue(upload_context.upload_method == UploadType.direct.value)
                 mock_file.assert_called_with(file_absolute_path, "rb")
@@ -158,11 +152,10 @@ class TestUploads(TestCase):
         client = JWPlatformClient()
         media_client_instance = client.Media
         file_absolute_path = "mock_file_path"
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         with open(file_absolute_path, "rb") as file:
             kwargs = {'target_part_size': 10 * 1024 * 1024, 'retry_count': 5}
             with JWPlatformMock() as mock_api:
-                upload_context = media_client_instance.create_media_for_upload(site_id, file, **kwargs)
+                upload_context = media_client_instance.create_media_and_get_upload_context(site_id, file, **kwargs)
                 media_client_instance.upload(file, upload_context, **kwargs)
                 self.assertTrue(upload_context.upload_method == UploadType.direct.value)
                 mock_file.assert_called_with(file_absolute_path, "rb")
@@ -189,11 +182,10 @@ class TestUploads(TestCase):
         client = JWPlatformClient()
         media_client_instance = client.Media
         file_absolute_path = "mock_file_path"
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         with open(file_absolute_path, "rb") as file:
             kwargs = {'target_part_size': 10 * 1024 * 1024, 'retry_count': 3}
             with JWPlatformMock() as mock_api:
-                upload_context = media_client_instance.create_media_for_upload(site_id, file, **kwargs)
+                upload_context = media_client_instance.create_media_and_get_upload_context(site_id, file, **kwargs)
                 with self.assertRaises(MaxRetriesExceededError):
                     media_client_instance.upload(file, upload_context, **kwargs)
                 mock_api.completeUpload.request_mock.assert_not_called()
@@ -218,11 +210,10 @@ class TestUploads(TestCase):
         client = JWPlatformClient()
         media_client_instance = client.Media
         file_absolute_path = "mock_file_path"
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         with open(file_absolute_path, "rb") as file:
             kwargs = {'target_part_size': 10 * 1024 * 1024, 'retry_count': 3}
             with JWPlatformMock() as mock_api:
-                upload_context = media_client_instance.create_media_for_upload(site_id, file, **kwargs)
+                upload_context = media_client_instance.create_media_and_get_upload_context(site_id, file, **kwargs)
                 with self.assertRaises(Exception):
                     media_client_instance.upload(file, upload_context, **kwargs)
                 mock_file.assert_called_with(file_absolute_path, "rb")
@@ -247,11 +238,10 @@ class TestUploads(TestCase):
         client = JWPlatformClient()
         media_client_instance = client.Media
         file_absolute_path = "mock_file_path"
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         with open(file_absolute_path, "rb") as file:
             kwargs = {'target_part_size': 5 * 1024 * 1024, 'retry_count': 3, 'base_url': JWPLATFORM_API_HOST}
             with JWPlatformMock() as mock_api, S3Mock() as s3_api:
-                upload_context = media_client_instance.create_media_for_upload(site_id, file, **kwargs)
+                upload_context = media_client_instance.create_media_and_get_upload_context(site_id, file, **kwargs)
                 self.assertTrue(upload_context.upload_method == UploadType.multipart.value)
                 media_client_instance.upload(file, upload_context, **kwargs)
                 mock_file.assert_called_with(file_absolute_path, "rb")
@@ -284,12 +274,11 @@ class TestUploads(TestCase):
         client = JWPlatformClient()
         media_client_instance = client.Media
         file_absolute_path = "mock_file_path"
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         retry_count = 3
         with open(file_absolute_path, "rb") as file:
             kwargs = {'target_part_size': 5 * 1024 * 1024, 'retry_count': retry_count, 'base_url': JWPLATFORM_API_HOST}
             with JWPlatformMock() as mock_api, S3Mock() as s3_api:
-                upload_context = media_client_instance.create_media_for_upload(site_id, file, **kwargs)
+                upload_context = media_client_instance.create_media_and_get_upload_context(site_id, file, **kwargs)
                 self.assertTrue(upload_context.upload_method == UploadType.multipart.value)
                 with self.assertRaises(MaxRetriesExceededError):
                     media_client_instance.upload(file, upload_context, **kwargs)
@@ -321,7 +310,6 @@ class TestUploads(TestCase):
         client = JWPlatformClient()
         media_client_instance = client.Media
         file_absolute_path = "mock_file_path"
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         with open(file_absolute_path, "rb") as file:
             kwargs = {'target_part_size': 5 * 1024 * 1024, 'retry_count': 3, 'base_url': JWPLATFORM_API_HOST}
             with JWPlatformMock() as mock_api, S3Mock() as s3_api:
@@ -358,11 +346,10 @@ class TestUploads(TestCase):
         client = JWPlatformClient()
         media_client_instance = client.Media
         file_absolute_path = "mock_file_path"
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         with open(file_absolute_path, "rb") as file:
             kwargs = {'target_part_size': 5 * 1024 * 1024, 'retry_count': 3, 'base_url': JWPLATFORM_API_HOST}
             with JWPlatformMock() as mock_api, S3Mock() as s3_api:
-                upload_context = media_client_instance.create_media_for_upload(site_id, file, **kwargs)
+                upload_context = media_client_instance.create_media_and_get_upload_context(site_id, file, **kwargs)
                 self.assertTrue(upload_context.upload_method == UploadType.multipart.value)
                 with self.assertRaises(MaxRetriesExceededError):
                     media_client_instance.upload(file, upload_context, **kwargs)
@@ -394,11 +381,10 @@ class TestUploads(TestCase):
         client = JWPlatformClient()
         media_client_instance = client.Media
         file_absolute_path = "mock_file_path"
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         with open(file_absolute_path, "rb") as file:
             kwargs = {'target_part_size': 5 * 1024 * 1024, 'retry_count': 3, 'base_url': JWPLATFORM_API_HOST}
             with JWPlatformMock() as mock_api, S3Mock() as s3_api:
-                upload_context = media_client_instance.create_media_for_upload(site_id, file, **kwargs)
+                upload_context = media_client_instance.create_media_and_get_upload_context(site_id, file, **kwargs)
                 self.assertTrue(upload_context.upload_method == UploadType.multipart.value)
                 with self.assertRaises(Exception):
                     media_client_instance.upload(file, upload_context, **kwargs)

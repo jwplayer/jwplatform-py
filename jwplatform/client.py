@@ -11,7 +11,7 @@ from jwplatform import __version__
 from jwplatform.errors import APIError
 from jwplatform.response import APIResponse, ResourceResponse, ResourcesResponse
 from jwplatform.upload import MultipartUpload, SingleUpload, UploadType, MIN_PART_SIZE, MaxRetriesExceededError, \
-    UPLOAD_BASE_URL, UploadContext
+    UPLOAD_BASE_URL, UploadContext, MAX_FILE_SIZE
 
 JWPLATFORM_API_HOST = 'api.jwplayer.com'
 JWPLATFORM_API_PORT = 443
@@ -267,11 +267,13 @@ class _MediaClient(_SiteResourceClient):
 
     def _determine_upload_method(self, file, target_part_size) -> str:
         file_size = os.stat(file.name).st_size
+        if file_size > MAX_FILE_SIZE:
+            raise NotImplementedError('File size greater than 25 GB is not supported.')
         if file_size <= target_part_size:
             return UploadType.direct.value
         return UploadType.multipart.value
 
-    def create_media_for_upload(self, site_id, file, body=None, query_params=None, **kwargs):
+    def create_media_and_get_upload_context(self, site_id, file, body=None, query_params=None, **kwargs):
         if not kwargs:
             kwargs = {}
 
@@ -312,7 +314,7 @@ class _MediaClient(_SiteResourceClient):
         if not upload_context:
             raise ValueError("The provided context is None. Cannot resume the upload.")
         if not self._can_resume(upload_context):
-            upload_context = self.create_media_for_upload(site_id, file, **kwargs)
+            upload_context = self.create_media_and_get_upload_context(site_id, file, **kwargs)
         upload_handler = self._get_upload_handler_for_upload_type(upload_context, file, **kwargs)
         try:
             upload_handler.upload()

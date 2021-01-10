@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 MAX_PAGE_SIZE = 1000
 MIN_PART_SIZE = 5 * 1024 * 1024
 UPLOAD_BASE_URL = 'upload.jwplayer.com'
+MAX_FILE_SIZE = 25 * 1000 * 1024 * 1024
 
 
 class UploadType(Enum):
@@ -177,8 +178,8 @@ class MultipartUpload:
             self._logger.debug(f"Part number {part_number} already uploaded. Skipping")
             return
         elif upload_hash:
-            raise FileExistsError(f'The file part {part_number} has been uploaded but the hash of the uploaded part '
-                                  f'does not match the hash of the current part read. Aborting.')
+            raise UnrecoverableError(f'The file part {part_number} has been uploaded but the hash of the uploaded part '
+                                     f'does not match the hash of the current part read. Aborting.')
 
         if "upload_link" not in returned_part:
             raise KeyError(f"Invalid upload link for part {part_number}.")
@@ -259,4 +260,8 @@ class PartUploadError(Exception):
 
 
 class S3UploadError(PartUploadError):
+    pass
+
+
+class UnrecoverableError(Exception):
     pass
