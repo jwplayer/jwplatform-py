@@ -2,7 +2,6 @@ import http.client
 import logging
 import math
 import os
-import sys
 from enum import Enum
 from hashlib import md5
 from urllib.parse import urlparse
@@ -14,12 +13,17 @@ MAX_FILE_SIZE = 25 * 1000 * 1024 * 1024
 
 
 class UploadType(Enum):
+    """
+    This class stores the enum values for the different type of uploads.
+    """
     direct = "direct"
     multipart = "multipart"
 
 
 class UploadContext:
-
+    """
+    This class stores the structure for an upload context so that it can be resumed later.
+    """
     def __init__(self, upload_method, upload_id, upload_token, direct_link):
         self._upload_method = upload_method
         self._upload_id = upload_id
@@ -83,7 +87,9 @@ def _get_returned_hash(response):
 
 
 class MultipartUpload:
-
+    """
+    This class manages the multi-part upload.
+    """
     def __init__(self, client, upload_id: str, file, target_part_size, retry_count, upload_context: UploadContext):
         self._upload_id = upload_id
         self._target_part_size = target_part_size
@@ -102,7 +108,11 @@ class MultipartUpload:
         self._upload_context = value
 
     def upload(self):
+        """
+        This methods uploads the parts for the multi-part upload.
+        Returns:
 
+        """
         if self._target_part_size < MIN_PART_SIZE:
             raise ValueError(f"The part size has to be at least greater than {MIN_PART_SIZE} bytes.")
 
@@ -111,8 +121,8 @@ class MultipartUpload:
         part_count = math.ceil(file_size / self._target_part_size)
 
         if part_count > 10000:
-            raise ValueError(f"The given file cannot be divided into more than 10000 parts. Please try increasing the "
-                             f"target part size.")
+            raise ValueError("The given file cannot be divided into more than 10000 parts. Please try increasing the "
+                             "target part size.")
 
         # Upload the parts
         self._upload_parts(part_count)
@@ -164,7 +174,7 @@ class MultipartUpload:
             raise
 
     def _retrieve_part_links(self, query_params):
-        resp = self._client.list(resource_id=self._upload_id, subresource_name='parts',
+        resp = self._client.list(upload_id=self._upload_id, subresource_name='parts',
                                  query_params=query_params)
         return resp.json_body
 
@@ -177,7 +187,7 @@ class MultipartUpload:
         if upload_hash and (repr(upload_hash) == repr(f"{computed_hash}")):  # returned hash is not surrounded by '"'
             self._logger.debug(f"Part number {part_number} already uploaded. Skipping")
             return
-        elif upload_hash:
+        if upload_hash:
             raise UnrecoverableError(f'The file part {part_number} has been uploaded but the hash of the uploaded part '
                                      f'does not match the hash of the current part read. Aborting.')
 
@@ -201,7 +211,9 @@ class MultipartUpload:
 
 
 class SingleUpload:
-
+    """
+    This class manages the operations related to the upload of a media file via a direct link.
+    """
     def __init__(self, upload_link, file, retry_count, upload_context: UploadContext):
         self._upload_link = upload_link
         self._upload_retry_count = retry_count
@@ -218,6 +230,11 @@ class SingleUpload:
         self._upload_context = value
 
     def upload(self):
+        """
+        Uploads the media file to the actual location as specified in the direct link.
+        Returns:
+
+        """
         self._logger.debug(f"Starting to upload file:{self._file.name}")
         bytes_chunk = self._file.read()
         computed_hash = _get_bytes_hash(bytes_chunk)
@@ -226,8 +243,8 @@ class SingleUpload:
             try:
                 response = _upload_to_s3(bytes_chunk, self._upload_link)
                 returned_hash = _get_returned_hash(response)
-                if repr(returned_hash) != repr(
-                        f"\"{computed_hash}\""):  # The returned hash is surrounded by '"' character
+                # The returned hash is surrounded by '"' character
+                if repr(returned_hash) != repr(f"\"{computed_hash}\""):
                     raise DataIntegrityError(
                         "The hash of the uploaded file does not match with the hash on the server.")
                 self._logger.debug(f"Successfully uploaded file {self._file.name}.")
@@ -239,7 +256,8 @@ class SingleUpload:
                 retry_count = retry_count + 1
                 if retry_count >= self._upload_retry_count:
                     self._file.seek(0, 0)
-                    raise MaxRetriesExceededError(f"Max retries exceeded while uploading file {self._file.name}")
+                    raise MaxRetriesExceededError(f"Max retries exceeded while uploading file {self._file.name}") \
+                        from err
 
             except Exception as ex:
                 self._file.seek(0, 0)
@@ -248,20 +266,36 @@ class SingleUpload:
 
 
 class DataIntegrityError(Exception):
+    """
+    This class is used to wrap exceptions when the uploaded data failed a data integrity check with the current file
+    part hash.
+    """
     pass
 
 
 class MaxRetriesExceededError(Exception):
+    """
+    This class is used to wrap exceptions when the number of retries are exceeded while uploading a part.
+    """
     pass
 
 
 class PartUploadError(Exception):
+    """
+    This class is used to wrap exceptions that occur because of part upload errors.
+    """
     pass
 
 
 class S3UploadError(PartUploadError):
+    """
+    This class extends the PartUploadError exception class when the upload is done via S3.
+    """
     pass
 
 
 class UnrecoverableError(Exception):
+    """
+    This class wraps exceptions that should not be recoverable or resumed from.
+    """
     pass

@@ -4,7 +4,6 @@ import logging
 from http.client import RemoteDisconnected
 import json
 import os
-import sys
 import urllib.parse
 
 from jwplatform import __version__
@@ -273,10 +272,21 @@ class _MediaClient(_SiteResourceClient):
             return UploadType.direct.value
         return UploadType.multipart.value
 
-    def create_media_and_get_upload_context(self, site_id, file, body=None, query_params=None, **kwargs):
+    def create_media_and_get_upload_context(self, file, body=None, query_params=None, **kwargs) -> UploadContext:
+        """
+        Creates the media and retrieve the upload context
+        Args:
+            file: The file-like object to the actual media file to be uploaded
+            body: The body of the payload.
+            query_params: The query parameters.
+            **kwargs: The upload arguments.
+
+        Returns: The UploadContext that can be reused to resuming an upload.
+
+        """
         if not kwargs:
             kwargs = {}
-
+        site_id = kwargs['site_id']
         # Determine the upload type - Single or multi-part
         target_part_size = int(kwargs['target_part_size']) if 'target_part_size' in kwargs else MIN_PART_SIZE
         upload_method = self._determine_upload_method(file, target_part_size)
@@ -287,7 +297,7 @@ class _MediaClient(_SiteResourceClient):
             body['upload'] = {}
 
         if not isinstance(body['upload'], dict):
-            raise ValueError(f"Invalid payload structure. The upload element needs to be dictionary.")
+            raise ValueError("Invalid payload structure. The upload element needs to be dictionary.")
 
         body["upload"]["method"] = upload_method
 
@@ -302,19 +312,38 @@ class _MediaClient(_SiteResourceClient):
         upload_context = UploadContext(upload_method, upload_id, upload_token, direct_link)
         return upload_context
 
-    def upload(self, file, context: UploadContext, **kwargs):
-        upload_handler = self._get_upload_handler_for_upload_type(context, file, **kwargs)
+    def upload(self, file, upload_context: UploadContext, **kwargs) -> None:
+        """
+        Uploads the media file.
+        Args:
+            file: The file-like object to the actual media file to be uploaded
+            upload_context: The query parameters.
+            **kwargs: The upload parameters.
+
+        Returns: None
+
+        """
+        upload_handler = self._get_upload_handler_for_upload_type(upload_context, file, **kwargs)
         try:
             upload_handler.upload()
         except Exception:
             file.seek(0, 0)
             raise
 
-    def resume(self, site_id, file, upload_context: UploadContext, **kwargs):
+    def resume(self, file, upload_context: UploadContext, **kwargs) -> None:
+        """
+        Resumes the upload of the media file.
+        Args:
+            file: The file-like object to the actual media file to be resumed
+            upload_context: The query parameters.
+            **kwargs: The upload parameters.
+
+        Returns: None
+        """
         if not upload_context:
             raise ValueError("The provided context is None. Cannot resume the upload.")
         if not self._can_resume(upload_context):
-            upload_context = self.create_media_and_get_upload_context(site_id, file, **kwargs)
+            upload_context = self.create_media_and_get_upload_context(file, **kwargs)
         upload_handler = self._get_upload_handler_for_upload_type(upload_context, file, **kwargs)
         try:
             upload_handler.upload()
@@ -349,18 +378,37 @@ class _MediaClient(_SiteResourceClient):
 class _UploadClient(_ScopedClient):
     _collection_path = "/v1/uploads/{resource_id}"
 
-    def __init__(self, api_secret, base_url='upload.jwplayer.com'):
+    def __init__(self, api_secret, base_url=UPLOAD_BASE_URL):
         client = JWPlatformClient(secret=api_secret, host=base_url)
         super().__init__(client)
 
-    def list(self, resource_id, subresource_name, query_params=None):
-        resource_path = self._collection_path.format(resource_id=resource_id)
+    def list(self, upload_id, subresource_name, query_params=None) -> None:
+        """
+        Lists the parts for a given multi-part upload.
+        Args:
+            upload_id: The upload ID for the upload
+            subresource_name: The subresource name.
+            query_params: The query parameters.
+
+        Returns: None
+
+        """
+        resource_path = self._collection_path.format(resource_id=upload_id)
         resource_path = f"{resource_path}/parts"
         response = self._client.request_with_retry(method="GET", path=resource_path, query_params=query_params)
         return ResourcesResponse.from_client(response, subresource_name, self.__class__)
 
-    def complete(self, resource_id, body=None):
-        resource_path = self._collection_path.format(resource_id=resource_id)
+    def complete(self, upload_id, body=None) -> None:
+        """
+        Marks the upload as complete.
+        Args:
+            upload_id: The upload ID for the upload
+            body: [Optional] - The body of the payload.
+
+        Returns: None
+
+        """
+        resource_path = self._collection_path.format(resource_id=upload_id)
         resource_path = f"{resource_path}/complete"
         response = self._client.request_with_retry(method="PUT", path=resource_path, body=body)
         return ResourceResponse.from_client(response, self.__class__)
