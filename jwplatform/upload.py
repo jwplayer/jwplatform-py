@@ -2,6 +2,7 @@ import http.client
 import logging
 import math
 import os
+from dataclasses import dataclass
 from enum import Enum
 from hashlib import md5
 from urllib.parse import urlparse
@@ -20,47 +21,25 @@ class UploadType(Enum):
     multipart = "multipart"
 
 
+@dataclass
 class UploadContext:
     """
     This class stores the structure for an upload context so that it can be resumed later.
     """
+
     def __init__(self, upload_method, upload_id, upload_token, direct_link):
-        self._upload_method = upload_method
-        self._upload_id = upload_id
-        self._upload_token = upload_token
-        self._direct_link = direct_link
+        self.upload_method = upload_method
+        self.upload_id = upload_id
+        self.upload_token = upload_token
+        self.direct_link = direct_link
 
-    @property
-    def upload_method(self):
-        return self._upload_method
-
-    @upload_method.setter
-    def upload_method(self, value):
-        self._upload_method = value
-
-    @property
-    def upload_id(self):
-        return self._upload_id
-
-    @upload_id.setter
-    def upload_id(self, value):
-        self._upload_id = value
-
-    @property
-    def upload_token(self):
-        return self._upload_token
-
-    @upload_token.setter
-    def upload_token(self, value):
-        self._upload_token = value
-
-    @property
-    def direct_link(self):
-        return self._direct_link
-
-    @direct_link.setter
-    def direct_link(self, value):
-        self._direct_link = value
+    """
+    This method evaluates whether an upload can be resumed based on the upload context state
+    """
+    def can_resume(self) -> bool:
+        return self.upload_token is not None \
+               and self.upload_method == UploadType.multipart.value \
+               and self.upload_id is not None
 
 
 def _upload_to_s3(bytes_chunk, upload_link):
@@ -90,8 +69,9 @@ class MultipartUpload:
     """
     This class manages the multi-part upload.
     """
-    def __init__(self, client, upload_id: str, file, target_part_size, retry_count, upload_context: UploadContext):
-        self._upload_id = upload_id
+
+    def __init__(self, client, file, target_part_size, retry_count, upload_context: UploadContext):
+        self._upload_id = upload_context.upload_id
         self._target_part_size = target_part_size
         self._upload_retry_count = retry_count
         self._file = file
@@ -174,8 +154,7 @@ class MultipartUpload:
             raise
 
     def _retrieve_part_links(self, query_params):
-        resp = self._client.list(upload_id=self._upload_id, subresource_name='parts',
-                                 query_params=query_params)
+        resp = self._client.list(upload_id=self._upload_id, query_params=query_params)
         return resp.json_body
 
     def _upload_part(self, bytes_chunk, part_number, returned_part):
@@ -214,6 +193,7 @@ class SingleUpload:
     """
     This class manages the operations related to the upload of a media file via a direct link.
     """
+
     def __init__(self, upload_link, file, retry_count, upload_context: UploadContext):
         self._upload_link = upload_link
         self._upload_retry_count = retry_count

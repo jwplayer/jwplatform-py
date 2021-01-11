@@ -288,7 +288,7 @@ class _MediaClient(_SiteResourceClient):
             kwargs = {}
         site_id = kwargs['site_id']
         # Determine the upload type - Single or multi-part
-        target_part_size = int(kwargs['target_part_size']) if 'target_part_size' in kwargs else MIN_PART_SIZE
+        target_part_size = int(kwargs.get('target_part_size', MIN_PART_SIZE))
         upload_method = self._determine_upload_method(file, target_part_size)
         if not body:
             body = CREATE_MEDIA_PAYLOAD.copy()
@@ -342,7 +342,7 @@ class _MediaClient(_SiteResourceClient):
         """
         if not upload_context:
             raise ValueError("The provided context is None. Cannot resume the upload.")
-        if not self._can_resume(upload_context):
+        if not upload_context.can_resume():
             upload_context = self.create_media_and_get_upload_context(file, **kwargs)
         upload_handler = self._get_upload_handler_for_upload_type(upload_context, file, **kwargs)
         try:
@@ -351,26 +351,20 @@ class _MediaClient(_SiteResourceClient):
             file.seek(0, 0)
             raise
 
-    def _can_resume(self, upload_context: UploadContext):
-        return upload_context.upload_token is not None \
-               and upload_context.upload_method == UploadType.multipart.value \
-               and upload_context.upload_id is not None
 
     def _get_upload_handler_for_upload_type(self, context: UploadContext, file, **kwargs):
         upload_method = context.upload_method
-        base_url = kwargs['base_url'] if 'base_url' in kwargs else UPLOAD_BASE_URL
-        target_part_size = int(kwargs['target_part_size']) if 'target_part_size' in kwargs else MIN_PART_SIZE
-        retry_count = int(kwargs['retry_count']) if 'retry_count' in kwargs else RETRY_COUNT
+        base_url = kwargs.get('base_url', UPLOAD_BASE_URL)
+        target_part_size = int(kwargs.get('target_part_size', MIN_PART_SIZE))
+        retry_count = int(kwargs.get('retry_count', RETRY_COUNT))
 
         if upload_method == UploadType.direct.value:
             direct_link = context.direct_link
             upload_handler = SingleUpload(direct_link, file, retry_count, context)
         else:
-            upload_id = context.upload_id
             upload_token = context.upload_token
-            upload_client = _UploadClient(api_secret=upload_token, base_url=base_url) \
-                if base_url else _UploadClient(api_secret=upload_token)
-            upload_handler = MultipartUpload(upload_client, upload_id, file, target_part_size,
+            upload_client = _UploadClient(api_secret=upload_token, base_url=base_url)
+            upload_handler = MultipartUpload(upload_client, file, target_part_size,
                                              retry_count, context)
         return upload_handler
 
@@ -378,16 +372,17 @@ class _MediaClient(_SiteResourceClient):
 class _UploadClient(_ScopedClient):
     _collection_path = "/v1/uploads/{resource_id}"
 
-    def __init__(self, api_secret, base_url=UPLOAD_BASE_URL):
+    def __init__(self, api_secret, base_url):
+        if base_url is None:
+            base_url = UPLOAD_BASE_URL
         client = JWPlatformClient(secret=api_secret, host=base_url)
         super().__init__(client)
 
-    def list(self, upload_id, subresource_name, query_params=None) -> None:
+    def list(self, upload_id, query_params=None):
         """
         Lists the parts for a given multi-part upload.
         Args:
             upload_id: The upload ID for the upload
-            subresource_name: The subresource name.
             query_params: The query parameters.
 
         Returns: None
@@ -396,7 +391,7 @@ class _UploadClient(_ScopedClient):
         resource_path = self._collection_path.format(resource_id=upload_id)
         resource_path = f"{resource_path}/parts"
         response = self._client.request_with_retry(method="GET", path=resource_path, query_params=query_params)
-        return ResourcesResponse.from_client(response, subresource_name, self.__class__)
+        return ResourcesResponse.from_client(response, 'parts', self.__class__)
 
     def complete(self, upload_id, body=None) -> None:
         """
@@ -405,13 +400,13 @@ class _UploadClient(_ScopedClient):
             upload_id: The upload ID for the upload
             body: [Optional] - The body of the payload.
 
-        Returns: None
+        Returns: List of parts with their upload metadata in a JSON format.
 
         """
         resource_path = self._collection_path.format(resource_id=upload_id)
         resource_path = f"{resource_path}/complete"
-        response = self._client.request_with_retry(method="PUT", path=resource_path, body=body)
-        return ResourceResponse.from_client(response, self.__class__)
+        self._client.request_with_retry(method="PUT", path=resource_path, body=body)
+        return
 
 
 class _WebhookClient(_ResourceClient):

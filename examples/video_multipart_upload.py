@@ -23,11 +23,9 @@ def run_multipart_upload(site_id, video_file_path):
         'target_part_size': 5 * 1024 * 1024,
         'retry_count': 3
     }
-    kwargs = upload_parameters
-
     with open(video_file_path, "rb") as file:
-        upload_context = media_client_instance.create_media_and_get_upload_context(file, **kwargs)
-        media_client_instance.upload(file, upload_context, **kwargs)
+        upload_context = media_client_instance.create_media_and_get_upload_context(file, **upload_parameters)
+        media_client_instance.upload(file, upload_context, **upload_parameters)
         logging.info(f"Successfully uploaded file:{file.name}")
 
 
@@ -47,19 +45,18 @@ def run_multipart_upload_with_auto_resume(site_id, video_file_path, retry_count)
         'site_id': site_id,
         'target_part_size': 5 * 1024 * 1024
     }
-    kwargs = upload_parameters
 
     with open(video_file_path, "rb") as file:
-        upload_context = media_client_instance.create_media_and_get_upload_context(file, **kwargs)
+        upload_context = media_client_instance.create_media_and_get_upload_context(file, **upload_parameters)
         try:
-            media_client_instance.upload(file, upload_context, **kwargs)
+            media_client_instance.upload(file, upload_context, **upload_parameters)
             return
         except Exception as ex:
             logging.exception(ex)
             logging.debug("Resuming upload.")
         while retry_count < 10:
             try:
-                media_client_instance.resume(file, upload_context, **kwargs)
+                media_client_instance.resume(file, upload_context, **upload_parameters)
                 return
             except (DataIntegrityError, PartUploadError, IOError, OSError) as ex:
                 retry_count = retry_count + 1
