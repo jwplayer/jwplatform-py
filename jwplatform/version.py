@@ -1,2 +1,2 @@
 # -*- coding: utf-8 -*-
-from . import v1
+__version__ = '2.1.0'

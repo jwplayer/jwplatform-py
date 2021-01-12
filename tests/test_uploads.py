@@ -8,7 +8,7 @@ from unittest import skip, TestCase
 from unittest.mock import patch, mock_open, Mock
 from http.client import RemoteDisconnected
 
-from jwplatform import __version__
+from jwplatform.version import __version__
 from jwplatform.client import JWPlatformClient, JWPLATFORM_API_HOST
 import logging
 

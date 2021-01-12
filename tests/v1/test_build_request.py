@@ -33,7 +33,7 @@ def test_required_parameters_present():
     assert params['api_format'] == 'json'
 
     assert 'api_kit' in params
-    assert params['api_kit'] == 'py-{}'.format(jwplatform.__version__)
+    assert params['api_kit'] == 'py-{}'.format(jwplatform.version.__version__)
 
     assert 'api_signature' in params
 

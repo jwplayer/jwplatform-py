@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import re
 from os import path
 from codecs import open
 
@@ -18,18 +17,8 @@ def read_file(*names, **kwargs):
         return f.read()
 
 
-def get_version():
-    version_file = read_file('jwplatform', '__init__.py')
-    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
-                              version_file, re.M)
-    if version_match:
-        return version_match.group(1)
-    raise RuntimeError('Unable to find version string.')
-
-
 setup(
     name='jwplatform',
-    version=get_version(),
     description='A Python client library for accessing JW Platform API',
     long_description=read_file('README.rst') + '\n\n' + read_file('CHANGES.rst'),
     url='https://github.com/jwplayer/jwplatform-py',
