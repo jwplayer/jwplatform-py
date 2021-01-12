@@ -1,6 +1,11 @@
 Changelog
 =========
 
+2.0.1 (2021-01-11)
+------------------
+
+- Fix a bug on generating the signature when array value is in the query string.
+
 2.0.0 (2020-12-03)
 ------------------
 
