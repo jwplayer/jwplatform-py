@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import http.client
 import logging
-from http.client import RemoteDisconnected
 import json
 import os
 import urllib.parse
+from neterr import StrictHTTPErrors
 
 from jwplatform import __version__
 from jwplatform.errors import APIError
@@ -15,7 +15,7 @@ from jwplatform.upload import MultipartUpload, SingleUpload, UploadType, MIN_PAR
 JWPLATFORM_API_HOST = 'api.jwplayer.com'
 JWPLATFORM_API_PORT = 443
 USER_AGENT = f"jwplatform_client-python/{__version__}"
-RETRY_COUNT = 3
+UPLOAD_RETRY_ATTEMPTS = 3
 
 __all__ = (
     "JWPLATFORM_API_HOST", "JWPLATFORM_API_PORT", "USER_AGENT", "JWPlatformClient"
@@ -101,17 +101,28 @@ class JWPlatformClient:
         return self.raw_request(method=method, url=path, body=body, headers=headers)
 
     def request_with_retry(self, method, path, body=None, headers=None, query_params=None,
-                           http_connection_retry_count=3):
+                           retry_attempts=3):
+        """
+        Sends a request using the client's configuration.
+
+        Args:
+            method (str): HTTP request method
+            path (str): Resource or endpoint to request
+            body (dict): Contents of the request body  that will be converted to JSON
+            headers (dict): Any additional HTTP headers
+            query_params (dict): Any additional query parameters to add to the URI
+            retry_attempts: The number of retry attempts that should be made for the request.
+        """
         retry_count = 0
-        for _ in range(http_connection_retry_count):
+        for _ in range(retry_attempts):
             try:
                 response = self.request(method, path, body=body, headers=headers, query_params=query_params)
                 return response
-            except RemoteDisconnected as rd:
-                self._logger.warning(rd, exc_info=True)
+            except StrictHTTPErrors as http_error:
+                self._logger.warning(http_error, exc_info=True)
                 retry_count = retry_count + 1
-                if retry_count >= http_connection_retry_count:
-                    self._logger.error(f"Exceeded maximum number of retries {http_connection_retry_count}"
+                if retry_count >= retry_attempts:
+                    self._logger.error(f"Exceeded maximum number of retries {retry_attempts}"
                                        f"while connecting to the host.")
                     raise
 
@@ -356,7 +367,7 @@ class _MediaClient(_SiteResourceClient):
         upload_method = context.upload_method
         base_url = kwargs.get('base_url', UPLOAD_BASE_URL)
         target_part_size = int(kwargs.get('target_part_size', MIN_PART_SIZE))
-        retry_count = int(kwargs.get('retry_count', RETRY_COUNT))
+        retry_count = int(kwargs.get('retry_count', UPLOAD_RETRY_ATTEMPTS))
 
         if upload_method == UploadType.direct.value:
             direct_link = context.direct_link
