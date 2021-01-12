@@ -1,10 +1,15 @@
 Changelog
 =========
 
-2.1.0 (2020-12-03)
+2.1.0 (2021-01-12)
 ------------------
 
 - Added support for JWPlatform file upload using a multi-part mechanism.
+
+2.0.1 (2021-01-11)
+------------------
+
+- Fix a bug on generating the signature when array value is in the query string.
 
 2.0.0 (2020-12-03)
 ------------------
