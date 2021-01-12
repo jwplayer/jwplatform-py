@@ -405,7 +405,7 @@ class _UploadClient(_ScopedClient):
         """
         resource_path = self._collection_path.format(resource_id=upload_id)
         resource_path = f"{resource_path}/complete"
-        return self._client.request_with_retry(method="PUT", path=resource_path, body=body)
+        self._client.request_with_retry(method="PUT", path=resource_path, body=body)
 
 
 class _WebhookClient(_ResourceClient):
