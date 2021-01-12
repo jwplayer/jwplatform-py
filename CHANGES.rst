@@ -1,6 +1,11 @@
 Changelog
 =========
 
+2.1.0 (2021-01-12)
+------------------
+
+- Added support for JWPlatform file upload using a multi-part mechanism.
+
 2.0.1 (2021-01-11)
 ------------------
 
@@ -15,7 +20,7 @@ Changelog
 1.3.0 (2019-12-22)
 ------------------
 
-- remove Python 2 compatability
+- remove Python 2 compatibility
 
 1.2.2 (2018-04-10)
 ------------------
