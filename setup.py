@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import re
 from os import path
 from codecs import open
 
@@ -15,6 +16,15 @@ def read_file(*names, **kwargs):
         encoding=kwargs.get('encoding', 'utf8')
     ) as f:
         return f.read()
+
+
+def get_version():
+    version_file = read_file('jwplatform', '__init__.py')
+    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
+                              version_file, re.M)
+    if version_match:
+        return version_match.group(1)
+    raise RuntimeError('Unable to find version string.')
 
 
 setup(
