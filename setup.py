@@ -19,7 +19,7 @@ def read_file(*names, **kwargs):
 
 
 def get_version():
-    version_file = read_file('jwplatform', '__init__.py')
+    version_file = read_file('jwplatform', 'version.py')
     version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
                               version_file, re.M)
     if version_match:
