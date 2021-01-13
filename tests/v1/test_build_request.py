@@ -7,6 +7,7 @@ import jwplatform
 
 from urllib.parse import quote
 
+JWPLATFORM_VERSION = jwplatform.__version__
 
 def test_required_parameters_present():
 
@@ -77,7 +78,7 @@ SIGNATURE_TEST_CASES = [
             't1': True,
             'n0': None,
         },
-        'expected_query_string': 'a=1&api_format=json&api_key=API_KEY_VALUE&api_kit=py-2.0.1'
+        'expected_query_string': f'a=1&api_format=json&api_key=API_KEY_VALUE&api_kit=py-{JWPLATFORM_VERSION}'
                                  '&api_nonce=API_NONCE_VALUE&api_timestamp=API_TIMESTAMP_VALUE'
                                  '&b=two&c3=Param%203&n0=None&t1=True&%E2%9D%84=%E2%9B%84',
     },
@@ -92,7 +93,7 @@ SIGNATURE_TEST_CASES = [
             'test_array1': [1, 2, 3, 4],
             'test_array2': ["test item1", "test item2"],
         },
-        'expected_query_string': 'a=1&api_format=json&api_key=API_KEY_VALUE&api_kit=py-2.0.1'
+        'expected_query_string': f'a=1&api_format=json&api_key=API_KEY_VALUE&api_kit=py-{JWPLATFORM_VERSION}'
                                  '&api_nonce=API_NONCE_VALUE&api_timestamp=API_TIMESTAMP_VALUE'
                                  '&b=two&c3=Param%203&n0=None&t1=True&test_array1=1&test_array1=2'
                                  '&test_array1=3&test_array1=4&test_array2=test%20item1'
