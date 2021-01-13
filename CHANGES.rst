@@ -1,6 +1,11 @@
 Changelog
 =========
 
+2.1.1 (2021-01-13)
+------------------
+
+- Fixed an issue where the v1 client could not be imported from the jwplatform module.
+
 2.1.0 (2021-01-12)
 ------------------
 
