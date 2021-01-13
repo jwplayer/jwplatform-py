@@ -6,7 +6,7 @@ import os
 import urllib.parse
 from neterr import StrictHTTPErrors
 
-from jwplatform import __version__
+from jwplatform.version import __version__
 from jwplatform.errors import APIError
 from jwplatform.response import APIResponse, ResourceResponse, ResourcesResponse
 from jwplatform.upload import MultipartUpload, SingleUpload, UploadType, MIN_PART_SIZE, MaxRetriesExceededError, \

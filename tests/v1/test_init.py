@@ -19,7 +19,7 @@ def test_default_initialization():
     assert jwp_client._agent is None
     assert 'User-Agent' in jwp_client._connection.headers
     assert jwp_client._connection.headers['User-Agent'] == \
-        'python-jwplatform/{}'.format(jwplatform.__version__)
+        'python-jwplatform/{}'.format(jwplatform.version.__version__)
 
 
 def test_custom_initialization():
@@ -49,7 +49,7 @@ def test_custom_initialization():
     assert jwp_client._agent == AGENT
     assert 'User-Agent' in jwp_client._connection.headers
     assert jwp_client._connection.headers['User-Agent'] == \
-        'python-jwplatform/{}-{}'.format(jwplatform.__version__, AGENT)
+        'python-jwplatform/{}-{}'.format(jwplatform.version.__version__, AGENT)
 
 
 def test_custom_initialization_empty_kwargs():
@@ -79,4 +79,4 @@ def test_custom_initialization_empty_kwargs():
     assert jwp_client._agent is None
     assert 'User-Agent' in jwp_client._connection.headers
     assert jwp_client._connection.headers['User-Agent'] == \
-        'python-jwplatform/{}'.format(jwplatform.__version__)
+        'python-jwplatform/{}'.format(jwplatform.version.__version__)

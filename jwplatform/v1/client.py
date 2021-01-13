@@ -10,7 +10,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
-from jwplatform import __version__
+from jwplatform.version import __version__
 from jwplatform.v1.resource import Resource
 
 BACKOFF_FACTOR = 1.7

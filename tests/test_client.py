@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from unittest.mock import patch
 
-from jwplatform import __version__
+from jwplatform.version import __version__
 from jwplatform.client import JWPlatformClient
 
 from .mock import JWPlatformMock
