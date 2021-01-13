@@ -29,6 +29,7 @@ def get_version():
 
 setup(
     name='jwplatform',
+    version=get_version(),
     description='A Python client library for accessing JW Platform API',
     long_description=read_file('README.rst') + '\n\n' + read_file('CHANGES.rst'),
     url='https://github.com/jwplayer/jwplatform-py',
