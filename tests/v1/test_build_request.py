@@ -7,6 +7,7 @@ import jwplatform
 
 from urllib.parse import quote
 
+
 def test_required_parameters_present():
 
     KEY = 'api_key'
