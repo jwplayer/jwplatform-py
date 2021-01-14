@@ -197,7 +197,7 @@ class _AnalyticsClient(_ScopedClient):
     def query(self, site_id, body, query_params=None):
         return self._client.request(
             method="POST",
-            path=f"/v2/sites/{site_id}/queries/",
+            path=f"/v2/sites/{site_id}/analytics/queries/",
             body=body,
             query_params=query_params
         )
