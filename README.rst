@@ -66,6 +66,19 @@ Source Code
 
 Source code for the JW Platform API library provided on `GitHub`_.
 
+V1 Client
+--------
+
+The V1 Client remains available for use, but is deprecated. We strongly recommend using the V2 Client when possible.
+
+To use the V1 Client, import the Client from the `v1` namespace.
+
+.. code-block:: python
+
+  import jwplatform.v1
+
+  api_client = jwplatform.v1.Client('SITE_ID', 'V1_API_SECRET')
+
 License
 -------
 
