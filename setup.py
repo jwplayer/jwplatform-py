@@ -54,7 +54,8 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'requests>=2.24.0'
+        'requests>=2.24.0',
+        'neterr~=1.1.1',
     ],
     setup_requires=[
         'pytest-runner',
