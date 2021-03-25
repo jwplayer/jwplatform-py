@@ -1,6 +1,11 @@
 Changelog
 =========
 
+2.1.2 (2021-03-23)
+------------------
+
+- Fixed missing dependency causing import errors after install.
+
 2.1.1 (2021-01-13)
 ------------------
 
