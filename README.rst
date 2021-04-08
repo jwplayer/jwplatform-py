@@ -67,7 +67,7 @@ Source Code
 Source code for the JW Platform API library provided on `GitHub`_.
 
 V1 Client
---------
+---------
 
 The V1 Client remains available for use, but is deprecated. We strongly recommend using the V2 Client when possible.
 
