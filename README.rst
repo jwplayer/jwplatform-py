@@ -33,6 +33,7 @@ Initialize ``jwplatform`` client instance. API keys can be created in the JW Pla
 Make an API request:
 
 .. code-block:: python
+
   response = jwplatform_client.Media.get(site_id='SITE_ID', media_id='MEDIA_ID')
 
 If API request is successful, ``response`` variable will contain dictionary with information related to the response and the actual video data in ``response.json_body``:
