@@ -33,8 +33,10 @@ Initialize ``jwplatform`` client instance. API keys can be created in the JW Pla
 Make an API request:
 
 .. code-block:: python
+  response = jwplatform_client.Media.get(site_id='SITE_ID', media_id='MEDIA_ID', query_params={"page": 1, "page_length": 10, "sort": "title:asc", "q": "external_id: abcdefgh"})
 
-  response = jwplatform_client.Media.get(site_id='SITE_ID', media_id='MEDIA_ID')
+In the example above, all query parameters are optional. `page`, `page_length`, and `sort` parameters default to 1, 10, and "created:dsc", respectively. Depending on the resource, the `q` parameter allows for filtering on different
+attributes, and may allow for AND/OR querying. For full documentation on the query syntax and endpoint specific details, please refer to developer.jwplayer.com.
 
 If API request is successful, ``response`` variable will contain dictionary with information related to the response and the actual video data in ``response.json_body``:
 
@@ -60,6 +62,7 @@ JW Platform API library will raise exception inherited from ``jwplatform.errors.
       print(err)
 
 For the complete list of available exception see `jwplatform/errors.py`_ file.
+
 
 Source Code
 -----------
