@@ -66,7 +66,7 @@ List calls allow for (optional) querying and filtering. This can be done by pass
   response = jwplatform_client.Media.list(site_id='SITE_ID', query_params={"page": 1, "page_length": 10, "sort": "title:asc", "q": "external_id: abcdefgh"})
 
 All query parameters are optional. `page`, `page_length`, and `sort` parameters default to 1, 10, and "created:dsc", respectively. Depending on the resource, the `q` parameter allows for filtering on different
-attributes, and may allow for AND/OR querying. For full documentation on the query synaltax and endpoint specific details, please refer to developer.jwplayer.com.
+attributes, and may allow for AND/OR querying. For full documentation on the query syntax and endpoint specific details, please refer to developer.jwplayer.com.
 
 
 Source Code
