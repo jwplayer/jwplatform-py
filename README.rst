@@ -64,7 +64,16 @@ For the complete list of available exception see `jwplatform/errors.py`_ file.
 List calls allow for (optional) querying and filtering. This can be done by passing the query parameters as a dict to the `query_params` keyword argument on list calls:
 
 .. code-block:: python
-  response = jwplatform_client.Media.list(site_id='SITE_ID', query_params={"page": 1, "page_length": 10, "sort": "title:asc", "q": "external_id: abcdefgh"})
+
+  response = jwplatform_client.Media.list(
+    site_id="SITE_ID",
+    query_params={
+        "page": 1,
+        "page_length": 10,
+        "sort": "title:asc",
+        "q": "external_id: abcdefgh",
+    },
+  )
 
 All query parameters are optional. `page`, `page_length`, and `sort` parameters default to 1, 10, and "created:dsc", respectively. The `q` parameter allows for filtering on different
 attributes and may allow for AND/OR querying depending on the resource. For full documentation on the query syntax and endpoint specific details please refer to developer.jwplayer.com.
