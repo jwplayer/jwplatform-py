@@ -31,7 +31,7 @@ def update_custom_params(secret, site_id, media_id, params):
     jwplatform_client = jwplatform.client.JWPlatformClient(secret)
     logging.info("Updating Video")
     try:
-        response = jwplatform_client.Media.update(site_id=site_id, media_id=media_id. body={
+        response = jwplatform_client.Media.update(site_id=site_id, media_id=media_id, body={
             "metadata": {
                 "custom_params": formatted_params,
             },
