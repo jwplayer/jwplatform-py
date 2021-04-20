@@ -11,32 +11,29 @@ import requests
 logging.basicConfig(level=logging.INFO)
 
 
-def create_video(secret, site_id, local_video_path, body=None):
+def replace_video(secret, site_id, local_video_path, media_id):
     """
-    Function which creates new video object via s3 upload method.
+    Function which allows to replace the content of an EXISTING video object.
 
     :param secret: <string> Secret value for your JWPlatform API key
     :param site_id: <string> ID of a JWPlatform site
     :param local_video_path: <string> Path to media on local machine.
-    :param body: Arguments conforming to standards found @ https://developer.jwplayer.com/jwplayer/reference#post_v2-sites-site-id-media
+    :param media_id: <string> Video's object ID. Can be found within JWPlayer Dashboard.
     :return:
     """
     filename = os.path.basename(local_video_path)
-    if body is None:
-        body = {}
-    body["upload"] = {
-        "method": "s3",
-    }
 
     # Setup API client
     jwplatform_client = jwplatform.client.JWPlatformClient(secret)
-
-    # Make /videos/create API call
-    logging.info("creating video")
+    logging.info("Updating Video")
     try:
-        response = jwplatform_client.Media.create(site_id=site_id, body=body)
+        response = jwplatform_client.Media.reupload(site_id=site_id, media_id=media_id, body={
+            "upload": {
+                 "method": "direct",
+            },
+        })
     except jwplatform.errors.APIError as e:
-        logging.error("Encountered an error creating a video\n{}".format(e))
+        logging.error("Encountered an error updating the video\n{}".format(e))
         sys.exit(str(e))
     logging.info(response.json_body)
 

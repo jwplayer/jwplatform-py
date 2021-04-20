@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 def update_custom_params(secret, site_id, media_id, params):
     """
     Function which allows you to update a video's custom params. Custom params are indicated by key-values of
-    "custom.<key>" = "<value>" so they must be provided as a dictionary and passed to the platform API call.
+    "<key>" = "<value>" so they must be provided as a dictionary and passed to the platform API call.
 
     :param secret: <string> Secret value for your JWPlatform API key
     :param site_id: <string> ID of a JWPlatform site
@@ -25,15 +25,13 @@ def update_custom_params(secret, site_id, media_id, params):
 
     :return: None
     """
-    formatted_params = {'custom.{}'.format(k): v for k,v in params.items()}
-
     # Setup API client
     jwplatform_client = jwplatform.client.JWPlatformClient(secret)
     logging.info("Updating Video")
     try:
         response = jwplatform_client.Media.update(site_id=site_id, media_id=media_id, body={
             "metadata": {
-                "custom_params": formatted_params,
+                "custom_params": params,
             },
         })
     except jwplatform.errors.APIError as e:

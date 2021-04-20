@@ -21,7 +21,7 @@ def create_video(api_key, api_secret, local_video_path, api_format='json', **kwa
     :return:
     """
     # Setup API client
-    jwplatform_client = jwplatform.Client(api_key, api_secret)
+    jwplatform_client = jwplatform.v1.Client(api_key, api_secret)
 
     # Make /videos/create API call
     logging.info("Registering new Video-Object")
