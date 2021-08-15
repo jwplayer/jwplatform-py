@@ -54,6 +54,11 @@ class JWPlatformMock(HttpApiMock):
             response=lambda _: (400, "unexpected")
         ),
         HttpApiMockEndpoint(
+            operation_id='testNotFoundError',
+            match_pattern=b'^PATCH /v2/test_not_found_error/',
+            response=lambda _: (404, "not found")
+        ),
+        HttpApiMockEndpoint(
             operation_id='getMedia',
             match_pattern=b'^GET /v2/sites/(?P<site_id>[A-Za-z0-9]{8}?)/media/(?P<media_id>[A-Za-z0-9]{8}?)/',
             response=lambda groups: (200, {

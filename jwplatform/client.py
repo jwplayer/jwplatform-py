@@ -69,8 +69,7 @@ class JWPlatformClient:
         if 200 <= response.status <= 299:
             return APIResponse(response)
 
-        error = APIError.from_response(response)
-        raise error
+        raise APIError.from_response(response)
 
     def request(self, method, path, body=None, headers=None, query_params=None):
         """

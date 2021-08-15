@@ -1,11 +1,8 @@
 # -*- coding: utf-8 -*-
-import os
-import pytest
 from unittest.mock import patch
 
 from jwplatform.version import __version__
 from jwplatform.client import JWPlatformClient
-from jwplatform.errors import NotFoundError
 
 from .mock import JWPlatformMock
 
@@ -45,8 +42,4 @@ def test_request_modifies_input():
     assert kwargs["headers"]["Content-Type"] == "application/json"
     assert kwargs["headers"]["Authorization"] == "Bearer test_secret"
 
-def test_fail():
-    with pytest.raises(NotFoundError):
-        test = JWPlatformClient(os.getenv('V2_API_SECRET'), host='google.com')
-        test.Media.update(site_id="site_id", media_id="media_id", body={})
 
