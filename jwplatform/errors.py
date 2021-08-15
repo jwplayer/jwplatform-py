@@ -11,7 +11,6 @@ class APIError(APIResponse, Exception):
     def __init__(self, response):
         super().__init__(response)
         self.errors = None
-
         if self.json_body is not None and isinstance(self.json_body, dict) and "errors" in self.json_body and isinstance(self.json_body["errors"], list):
             self.errors = self.json_body["errors"]
             self._error_code_map = defaultdict(list)
@@ -20,6 +19,9 @@ class APIError(APIResponse, Exception):
                 for error in self.errors:
                     if isinstance(error, dict) and "code" in error and "description" in error:
                         self._error_code_map[error["code"]].append(error)
+        # If self.errors is still None, check to see if response has a reason
+        if self.errors is None:
+            self.errors = [{"code": response.status, "description": response.reason}]
 
     @classmethod
     def from_response(cls, response):

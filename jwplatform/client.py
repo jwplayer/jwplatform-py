@@ -66,11 +66,11 @@ class JWPlatformClient:
 
         self._connection.request(method, url, body, headers)
         response = self._connection.getresponse()
-
         if 200 <= response.status <= 299:
             return APIResponse(response)
 
-        raise APIError.from_response(response)
+        error = APIError.from_response(response)
+        raise error
 
     def request(self, method, path, body=None, headers=None, query_params=None):
         """
