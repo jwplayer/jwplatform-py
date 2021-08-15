@@ -41,5 +41,3 @@ def test_request_modifies_input():
     assert kwargs["headers"]["User-Agent"] == f"jwplatform_client-python/{__version__}"
     assert kwargs["headers"]["Content-Type"] == "application/json"
     assert kwargs["headers"]["Authorization"] == "Bearer test_secret"
-
-
