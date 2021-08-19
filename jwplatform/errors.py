@@ -19,9 +19,6 @@ class APIError(APIResponse, Exception):
                 for error in self.errors:
                     if isinstance(error, dict) and "code" in error and "description" in error:
                         self._error_code_map[error["code"]].append(error)
-        # If self.errors is still None, check to see if response has a reason
-        if self.errors is None:
-            self.errors = [{"code": response.status, "description": response.reason}]
 
     @classmethod
     def from_response(cls, response):
@@ -45,8 +42,12 @@ class APIError(APIResponse, Exception):
 
     def __str__(self):
         msg = "JWPlatform API Error:\n\n"
-        for error in self.errors:
-            msg += "{code}: {desc}\n".format(code=error["code"], desc=error["description"])
+        # If self.errors is None, construct message from response
+        if self.errors is None:
+            msg += f"code: {self.response.status}, description: {self.response.reason}"
+        else:
+            for error in self.errors:
+                msg += "{code}: {desc}\n".format(code=error["code"], desc=error["description"])
         return msg
 
 

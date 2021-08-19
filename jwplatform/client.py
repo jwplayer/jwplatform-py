@@ -66,7 +66,7 @@ class JWPlatformClient:
 
         self._connection.request(method, url, body, headers)
         response = self._connection.getresponse()
-        
+
         if 200 <= response.status <= 299:
             return APIResponse(response)
 

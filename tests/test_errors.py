@@ -38,7 +38,7 @@ def test_unknown_body_error():
             client.raw_request("POST", "/v2/test_unknown_body_error/")
             pytest.fail("Expected to raise ClientError")
         except ClientError as ex:
-            assert ex.errors == [{'code': 400, 'description': 'Bad Request'}]
+            assert ex.errors is None
 
 
 def test_not_found_error():
@@ -49,7 +49,7 @@ def test_not_found_error():
             client.raw_request("PATCH", "/v2/test_not_found_error/")
             pytest.fail("Expected to raise ClientError")
         except ClientError as ex:
-            assert ex.errors == [{'code': 404, 'description': 'Not Found'}]
+            assert ex.errors is None
 
 
 def test_error_code_access():
