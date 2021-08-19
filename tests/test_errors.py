@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 
 from jwplatform.client import JWPlatformClient
-from jwplatform.errors import ClientError, ServerError, UnexpectedStatusError, BadRequestError
+from jwplatform.errors import BadRequestError, ClientError, NotFoundError, ServerError, UnexpectedStatusError
 
 from .mock import JWPlatformMock
 
@@ -39,6 +39,18 @@ def test_unknown_body_error():
             pytest.fail("Expected to raise ClientError")
         except ClientError as ex:
             assert ex.errors is None
+
+
+def test_not_found_error():
+    client = JWPlatformClient()
+
+    with JWPlatformMock():
+        try:
+            client.raw_request("PATCH", "/v2/test_not_found_error/")
+            pytest.fail("Expected to raise ClientError")
+        except ClientError as ex:
+            assert ex.errors is None
+
 
 def test_error_code_access():
     client = JWPlatformClient()

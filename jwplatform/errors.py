@@ -11,7 +11,6 @@ class APIError(APIResponse, Exception):
     def __init__(self, response):
         super().__init__(response)
         self.errors = None
-
         if self.json_body is not None and isinstance(self.json_body, dict) and "errors" in self.json_body and isinstance(self.json_body["errors"], list):
             self.errors = self.json_body["errors"]
             self._error_code_map = defaultdict(list)
@@ -43,8 +42,12 @@ class APIError(APIResponse, Exception):
 
     def __str__(self):
         msg = "JWPlatform API Error:\n\n"
-        for error in self.errors:
-            msg += "{code}: {desc}\n".format(code=error["code"], desc=error["description"])
+        # If self.errors is None, construct message from response
+        if self.errors is None:
+            msg += f"code: {self.response.status}, description: {self.response.reason}"
+        else:
+            for error in self.errors:
+                msg += "{code}: {desc}\n".format(code=error["code"], desc=error["description"])
         return msg
 
 
