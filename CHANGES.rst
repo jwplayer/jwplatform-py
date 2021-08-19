@@ -1,7 +1,7 @@
 Changelog
 =========
 
-2.1.2 (2021-03-23)
+2.1.3 (2021-08-19)
 ------------------
 
 - Fixed exception handler failing to `_str_` represent itself
