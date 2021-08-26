@@ -9,7 +9,7 @@ import time
 import math
 
 import jwplatform
-
+from jwplatform.client import JWPlatformClient
 
 def make_csv(secret, site_id, path_to_csv=None, result_limit=1000, query_params=None):
     """
@@ -33,7 +33,7 @@ def make_csv(secret, site_id, path_to_csv=None, result_limit=1000, query_params=
         query_params = {}
     query_params["page_length"] = result_limit
 
-    jwplatform_client = jwplatform.client.JWPlatformClient(secret)
+    jwplatform_client = JWPlatformClient(secret)
     logging.info("Querying for video list.")
 
     while True:
@@ -68,7 +68,7 @@ def make_csv(secret, site_id, path_to_csv=None, result_limit=1000, query_params=
             break
 
     # Section for writing video library to csv
-    desired_fields = ['id', 'title', 'description', 'tags', 'publish_start_date', 'permalink']
+    desired_fields = ['id', 'title', 'description', 'tags', 'publish_start_date', 'permalink', 'duration', 'captions', 'custom_params', 'duration']
     should_write_header = not os.path.isfile(path_to_csv)
     with open(path_to_csv, 'a+') as path_to_csv:
         # Only write columns to the csv which are specified above. Columns not specified are ignored.
