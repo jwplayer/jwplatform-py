@@ -683,6 +683,13 @@ class _RecommendationsPlaylistClient(_ResourceClient):
     _singular_path = "/v2/sites/{site_id}/playlists/{resource_id}/{resource_name}/"
 
 
+class _WatchlistPlaylistClient(_ResourceClient):
+    _resource_name = "watchlist_playlist"
+    _id_name = "playlist_id"
+    _collection_path = "/v2/sites/{site_id}/playlists/{resource_name}/"
+    _singular_path = "/v2/sites/{site_id}/playlists/{resource_id}/{resource_name}/"
+
+
 class _PlaylistClient(_ResourceClient):
     _resource_name = "playlists"
     _id_name = "playlist_id"
@@ -695,6 +702,7 @@ class _PlaylistClient(_ResourceClient):
         self.ArticleMatchingPlaylist = _ArticleMatchingPlaylistClient(client)
         self.SearchPlaylist = _SearchPlaylistClient(client)
         self.RecommendationsPlaylist = _RecommendationsPlaylistClient(client)
+        self.WatchlistPlaylist = _WatchlistPlaylistClient(client)
 
 
 class _SiteProtectionRuleClient(_ScopedClient):
