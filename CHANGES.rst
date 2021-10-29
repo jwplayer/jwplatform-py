@@ -1,8 +1,8 @@
 Changelog
 =========
 
-2.2.0 (TBD)
------------
+2.2.0 (2021-11-01)
+------------------
 
 - Add support for remaining v2 routes as of official release.
 
