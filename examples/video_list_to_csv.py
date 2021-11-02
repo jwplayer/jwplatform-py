@@ -2,14 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import sys
 import os
 import csv
 import time
-import math
-
 import jwplatform
-
+from jwplatform.client import JWPlatformClient
 
 def make_csv(secret, site_id, path_to_csv=None, result_limit=1000, query_params=None):
     """
@@ -33,7 +30,7 @@ def make_csv(secret, site_id, path_to_csv=None, result_limit=1000, query_params=
         query_params = {}
     query_params["page_length"] = result_limit
 
-    jwplatform_client = jwplatform.client.JWPlatformClient(secret)
+    jwplatform_client = JWPlatformClient(secret)
     logging.info("Querying for video list.")
 
     while True:
@@ -61,6 +58,11 @@ def make_csv(secret, site_id, path_to_csv=None, result_limit=1000, query_params=
         for video in next_videos:
             csv_video = video["metadata"]
             csv_video["id"] = video["id"]
+            csv_video['duration'] = video['duration']
+            csv_video['custom_params'] = video['custom_params']
+            captions = get_captions(api_client=jwplatform_client, site_id=site_id, media_id=video["id"])
+            csv_video['has_captions'] = bool(len(captions))
+            csv_video['captions'] = captions
             videos.append(csv_video)
         page += 1
         logging.info("Accumulated {} videos.".format(len(videos)))
@@ -68,7 +70,7 @@ def make_csv(secret, site_id, path_to_csv=None, result_limit=1000, query_params=
             break
 
     # Section for writing video library to csv
-    desired_fields = ['id', 'title', 'description', 'tags', 'publish_start_date', 'permalink']
+    desired_fields = ['id', 'title', 'description', 'tags', 'publish_start_date', 'permalink', 'custom_params', 'duration', 'has_captions', 'captions']
     should_write_header = not os.path.isfile(path_to_csv)
     with open(path_to_csv, 'a+') as path_to_csv:
         # Only write columns to the csv which are specified above. Columns not specified are ignored.
@@ -76,3 +78,34 @@ def make_csv(secret, site_id, path_to_csv=None, result_limit=1000, query_params=
         if should_write_header:
             writer.writeheader()
         writer.writerows(videos)
+
+def get_captions(api_client, site_id, media_id):
+    captions = []
+    captions_response = {}
+    try:
+        captions_response = api_client.request(
+            method='GET',
+            path=f'https://api.jwplayer.com/v2/sites/{site_id}/media/{media_id}/text_tracks/'
+        )
+    except jwplatform.errors.TooManyRequestsError:
+        logging.error("Encountered rate limiting error. Taking a 60 seconds break.")
+        time.sleep(60)
+        captions_response = api_client.request(
+            method='GET',
+            path=f'https://api.jwplayer.com/v2/sites/{site_id}/media/{media_id}/text_tracks/'
+        )
+    except jwplatform.errors.APIError as e:
+        logging.error("Encountered an error querying for text tracks list.\n{}".format(e))
+        raise e
+    for text_track in captions_response.json_body['text_tracks']:
+            captions.append(
+                {
+                    'created': text_track['created'],
+                    'id': text_track['id'],
+                    'metadata.label': text_track['metadata']['label'],
+                    'metadata.srclang': text_track['metadata']['srclang'],
+                    'status': text_track['status'],
+                    'track_kind':text_track['track_kind']
+                }
+            )
+    return captions
