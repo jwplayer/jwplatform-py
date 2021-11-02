@@ -48,12 +48,19 @@ class JWPlatformClient:
         )
 
         self._logger = logging.getLogger(self.__class__.__name__)
+
         self.analytics = _AnalyticsClient(self)
+        self.advertising = _AdvertisingClient(self)
+
         self.Import = _ImportClient(self)
         self.Channel = _ChannelClient(self)
         self.Media = _MediaClient(self)
         self.WebhookClient = _WebhookClient(self)
-        self.advertising = _AdvertisingClient(self)
+        self.MediaProtectionRule = _MediaProtectionRuleClient(self)
+        self.Player = _PlayerClient(self)
+        self.Playlist = _PlaylistClient(self)
+        self.Site = _SiteClient(self)
+        self.Thumbnail = _ThumbnailClient(self)
 
     def raw_request(self, method, url, body=None, headers=None):
         """
@@ -125,6 +132,14 @@ class JWPlatformClient:
                     self._logger.error(f"Exceeded maximum number of retries {retry_attempts}"
                                        f"while connecting to the host.")
                     raise
+
+    def query_usage(self, body=None, query_params=None):
+        return self._client.request(
+            method="PUT",
+            path=f"/v2/query_usage/",
+            body=body,
+            query_params=query_params
+        )
 
 
 class _ScopedClient:
@@ -251,6 +266,147 @@ class _ChannelEventClient(_ScopedClient):
         )
 
 
+class _MediaRenditionClient(_ScopedClient):
+
+    def list(self, site_id, media_id, query_params=None):
+        response = self._client.request(
+            method="GET",
+            path=f"/v2/sites/{site_id}/media/{media_id}/media_renditions/",
+            query_params=query_params
+        )
+        return ResourcesResponse.from_client(response, "media_renditions", self.__class__)
+
+    def create(self, site_id, media_id, body=None, query_params=None):
+        response = self._client.request(
+            method="POST",
+            path=f"/v2/sites/{site_id}/media/{media_id}/media_renditions/",
+            body=body,
+            query_params=query_params
+        )
+        return ResourceResponse.from_client(response, self.__class__)
+
+    def get(self, site_id, media_id, rendition_id, query_params=None):
+        response = self._client.request(
+            method="GET",
+            path=f"/v2/sites/{site_id}/media/{media_id}/media_renditions/{rendition_id}/",
+            query_params=query_params
+        )
+        return ResourceResponse.from_client(response, self.__class__)
+
+    def delete(self, site_id, media_id, rendition_id, query_params=None):
+        return self._client.request(
+            method="DELETE",
+            path=f"/v2/sites/{site_id}/media/{media_id}/media_renditions/{rendition_id}/",
+            query_params=query_params
+        )
+
+
+class _OriginalClient(_ScopedClient):
+
+    def list(self, site_id, media_id, query_params=None):
+        response = self._client.request(
+            method="GET",
+            path=f"/v2/sites/{site_id}/media/{media_id}/originals/",
+            query_params=query_params
+        )
+        return ResourcesResponse.from_client(response, "originals", self.__class__)
+
+    def create(self, site_id, media_id, body=None, query_params=None):
+        response = self._client.request(
+            method="POST",
+            path=f"/v2/sites/{site_id}/media/{media_id}/originals/",
+            body=body,
+            query_params=query_params
+        )
+        return ResourceResponse.from_client(response, self.__class__)
+
+    def get(self, site_id, media_id, original_id, query_params=None):
+        response = self._client.request(
+            method="GET",
+            path=f"/v2/sites/{site_id}/media/{media_id}/originals/{original_id}/",
+            query_params=query_params
+        )
+        return ResourceResponse.from_client(response, self.__class__)
+
+    def update(self, site_id, media_id, original_id, body, query_params=None):
+        response = self._client.request(
+            method="PATCH",
+            path=f"/v2/sites/{site_id}/media/{media_id}/originals/{original_id}/",
+            body=body,
+            query_params=query_params
+        )
+        return ResourceResponse.from_client(response, self.__class__)
+
+    def delete(self, site_id, media_id, original_id, query_params=None):
+        return self._client.request(
+            method="DELETE",
+            path=f"/v2/sites/{site_id}/media/{media_id}/originals/{original_id}/",
+            query_params=query_params
+        )
+
+
+class _TextTrackClient(_ScopedClient):
+
+    def list(self, site_id, media_id, query_params=None):
+        response = self._client.request(
+            method="GET",
+            path=f"/v2/sites/{site_id}/media/{media_id}/text_tracks/",
+            query_params=query_params
+        )
+        return ResourcesResponse.from_client(response, "text_tracks", self.__class__)
+
+    def create(self, site_id, media_id, body=None, query_params=None):
+        response = self._client.request(
+            method="POST",
+            path=f"/v2/sites/{site_id}/media/{media_id}/text_tracks/",
+            body=body,
+            query_params=query_params
+        )
+        return ResourceResponse.from_client(response, self.__class__)
+
+    def get(self, site_id, media_id, track_id, query_params=None):
+        response = self._client.request(
+            method="GET",
+            path=f"/v2/sites/{site_id}/media/{media_id}/text_tracks/{track_id}/",
+            query_params=query_params
+        )
+        return ResourceResponse.from_client(response, self.__class__)
+
+    def update(self, site_id, media_id, track_id, body, query_params=None):
+        response = self._client.request(
+            method="PATCH",
+            path=f"/v2/sites/{site_id}/media/{media_id}/text_tracks/{track_id}/",
+            body=body,
+            query_params=query_params
+        )
+        return ResourceResponse.from_client(response, self.__class__)
+
+    def delete(self, site_id, media_id, track_id, query_params=None):
+        return self._client.request(
+            method="DELETE",
+            path=f"/v2/sites/{site_id}/media/{media_id}/text_tracks/{track_id}/",
+            query_params=query_params
+        )
+
+    def publish(self, site_id, media_id, track_id, body=None, query_params=None):
+        response = self._client.request(
+            method="PUT",
+            path=f"/v2/sites/{site_id}/media/{media_id}/text_tracks/{track_id}/publish/",
+            body=body,
+            query_params=query_params
+        )
+        return ResourceResponse.from_client(response, self.__class__)
+
+    def unpublish(self, site_id, media_id, track_id, body=None, query_params=None):
+        response = self._client.request(
+            method="PUT",
+            path=f"/v2/sites/{site_id}/media/{media_id}/text_tracks/{track_id}/unpublish/",
+            body=body,
+            query_params=query_params
+        )
+        return ResourceResponse.from_client(response, self.__class__)
+
+
 CREATE_MEDIA_PAYLOAD = {
     "upload": {
     },
@@ -264,6 +420,12 @@ class _MediaClient(_SiteResourceClient):
     _resource_name = "media"
     _id_name = "media_id"
     _logger = logging.getLogger(__name__)
+
+    def __init__(self, client):
+        super().__init__(client)
+        self.MediaRendition = _MediaRenditionClient(client)
+        self.Original = _OriginalClient(client)
+        self.TextTrack = _TextTrackClient(client)
 
     def reupload(self, site_id, body, query_params=None, **kwargs):
         resource_id = kwargs[self._id_name]
@@ -362,7 +524,6 @@ class _MediaClient(_SiteResourceClient):
             file.seek(0, 0)
             raise
 
-
     def _get_upload_handler_for_upload_type(self, context: UploadContext, file, **kwargs):
         upload_method = context.upload_method
         base_url = kwargs.get('base_url', UPLOAD_BASE_URL)
@@ -431,11 +592,27 @@ class _VpbConfigClient(_ResourceClient):
     _singular_path = "/v2/sites/{site_id}/advertising/{resource_name}/{resource_id}/"
 
 
+class _PlayerBiddingConfigClient(_ResourceClient):
+    _resource_name = "player_bidding_configs"
+    _id_name = "config_id"
+    _collection_path = "/v2/sites/{site_id}/advertising/{resource_name}/"
+    _singular_path = "/v2/sites/{site_id}/advertising/{resource_name}/{resource_id}/"
+
+
+class _ScheduleClient(_ResourceClient):
+    _resource_name = "schedules"
+    _id_name = "ad_schedule_id"
+    _collection_path = "/v2/sites/{site_id}/advertising/{resource_name}/"
+    _singular_path = "/v2/sites/{site_id}/advertising/{resource_name}/{resource_id}/"
+
+
 class _AdvertisingClient(_ScopedClient):
 
     def __init__(self, client):
         super().__init__(client)
         self.VpbConfig = _VpbConfigClient(client)
+        self.PlayerBiddingConfig = _PlayerBiddingConfigClient(client)
+        self.Schedule = _ScheduleClient(client)
 
     def update_schedules_vpb_config(self, site_id, body, query_params=None):
         return self._client.request(
@@ -444,3 +621,141 @@ class _AdvertisingClient(_ScopedClient):
             body=body,
             query_params=query_params
         )
+
+    def update_schedules_player_bidding_configs(self, site_id, body, query_params=None):
+        return self._client.request(
+            method="PUT",
+            path=f"/v2/sites/{site_id}/advertising/update_schedules_player_bidding_configs/",
+            body=body,
+            query_params=query_params
+        )
+
+
+class _MediaProtectionRuleClient(_ResourceClient):
+    _resource_name = "media_protection_rules"
+    _id_name = "protection_rule_id"
+
+
+class _PlayerClient(_ResourceClient):
+    _resource_name = "players"
+    _id_name = "player_id"
+
+
+class _ManualPlaylistClient(_ResourceClient):
+    _resource_name = "manual_playlist"
+    _id_name = "playlist_id"
+    _collection_path = "/v2/sites/{site_id}/playlists/{resource_name}/"
+    _singular_path = "/v2/sites/{site_id}/playlists/{resource_id}/{resource_name}/"
+
+
+class _DynamicPlaylistClient(_ResourceClient):
+    _resource_name = "dynamic_playlist"
+    _id_name = "playlist_id"
+    _collection_path = "/v2/sites/{site_id}/playlists/{resource_name}/"
+    _singular_path = "/v2/sites/{site_id}/playlists/{resource_id}/{resource_name}/"
+
+
+class _TrendingPlaylistClient(_ResourceClient):
+    _resource_name = "trending_playlist"
+    _id_name = "playlist_id"
+    _collection_path = "/v2/sites/{site_id}/playlists/{resource_name}/"
+    _singular_path = "/v2/sites/{site_id}/playlists/{resource_id}/{resource_name}/"
+
+
+class _ArticleMatchingPlaylistClient(_ResourceClient):
+    _resource_name = "article_matching_playlist"
+    _id_name = "playlist_id"
+    _collection_path = "/v2/sites/{site_id}/playlists/{resource_name}/"
+    _singular_path = "/v2/sites/{site_id}/playlists/{resource_id}/{resource_name}/"
+
+
+class _SearchPlaylistClient(_ResourceClient):
+    _resource_name = "search_playlist"
+    _id_name = "playlist_id"
+    _collection_path = "/v2/sites/{site_id}/playlists/{resource_name}/"
+    _singular_path = "/v2/sites/{site_id}/playlists/{resource_id}/{resource_name}/"
+
+
+class _RecommendationsPlaylistClient(_ResourceClient):
+    _resource_name = "recommendations_playlist"
+    _id_name = "playlist_id"
+    _collection_path = "/v2/sites/{site_id}/playlists/{resource_name}/"
+    _singular_path = "/v2/sites/{site_id}/playlists/{resource_id}/{resource_name}/"
+
+
+class _WatchlistPlaylistClient(_ResourceClient):
+    _resource_name = "watchlist_playlist"
+    _id_name = "playlist_id"
+    _collection_path = "/v2/sites/{site_id}/playlists/{resource_name}/"
+    _singular_path = "/v2/sites/{site_id}/playlists/{resource_id}/{resource_name}/"
+
+
+class _PlaylistClient(_ResourceClient):
+    _resource_name = "playlists"
+    _id_name = "playlist_id"
+
+    def __init__(self, client):
+        super().__init__(client)
+        self.ManualPlaylist = _ManualPlaylistClient(client)
+        self.DynamicPlaylist = _DynamicPlaylistClient(client)
+        self.TrendingPlaylist = _TrendingPlaylistClient(client)
+        self.ArticleMatchingPlaylist = _ArticleMatchingPlaylistClient(client)
+        self.SearchPlaylist = _SearchPlaylistClient(client)
+        self.RecommendationsPlaylist = _RecommendationsPlaylistClient(client)
+        self.WatchlistPlaylist = _WatchlistPlaylistClient(client)
+
+
+class _SiteProtectionRuleClient(_ScopedClient):
+
+    def get(self, site_id, query_params=None):
+        response = self._client.request(
+            method="GET",
+            path=f"/v2/sites/{site_id}/site_protection_rule/",
+            query_params=query_params
+        )
+        return ResourceResponse.from_client(response, self.__class__)
+
+    def update(self, site_id, body, query_params=None, **kwargs):
+        response = self._client.request(
+            method="PATCH",
+            path=f"/v2/sites/{site_id}/site_protection_rule/",
+            body=body,
+            query_params=query_params
+        )
+        return ResourceResponse.from_client(response, self.__class__)
+
+
+class _SiteClient(_ScopedClient):
+
+    def __init__(self, client):
+        super().__init__(client)
+        self.SiteProtectionRule = _SiteProtectionRuleClient(client)
+
+    def remove_tag(self, site_id, body=None, query_params=None):
+        return self._client.request(
+            method="PUT",
+            path=f"/v2/sites/{site_id}/remove_tag/",
+            body=body,
+            query_params=query_params
+        )
+
+    def rename_tag(self, site_id, body=None, query_params=None):
+        return self._client.request(
+            method="PUT",
+            path=f"/v2/sites/{site_id}/rename_tag/",
+            body=body,
+            query_params=query_params
+        )
+
+    def query_usage(self, site_id, body=None, query_params=None):
+        return self._client.request(
+            method="PUT",
+            path=f"/v2/sites/{site_id}/query_usage/",
+            body=body,
+            query_params=query_params
+        )
+
+
+class _ThumbnailClient(_ResourceClient):
+    _resource_name = "thumbnails"
+    _id_name = "thumbnail_id"

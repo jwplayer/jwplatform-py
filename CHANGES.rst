@@ -1,6 +1,11 @@
 Changelog
 =========
 
+2.2.0 (2021-11-01)
+------------------
+
+- Add support for remaining v2 routes as of official release.
+
 2.1.3 (2021-08-19)
 ------------------
 
