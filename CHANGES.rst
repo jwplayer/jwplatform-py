@@ -1,6 +1,11 @@
 Changelog
 =========
 
+2.2.1 (2022-05-05)
+------------------
+
+- Address Issue #64 by having ThumbnailClient inherit from SiteResourceClient
+
 2.2.0 (2021-11-01)
 ------------------
 
