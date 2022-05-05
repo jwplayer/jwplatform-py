@@ -756,6 +756,6 @@ class _SiteClient(_ScopedClient):
         )
 
 
-class _ThumbnailClient(_ResourceClient):
+class _ThumbnailClient(_SiteResourceClient):
     _resource_name = "thumbnails"
     _id_name = "thumbnail_id"
