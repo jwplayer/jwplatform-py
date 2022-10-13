@@ -6,6 +6,7 @@ import logging
 import sys
 
 import jwplatform
+from jwplatform.client import JWPlatformClient
 import requests
 
 logging.basicConfig(level=logging.INFO)
@@ -24,7 +25,7 @@ def replace_video(secret, site_id, local_video_path, media_id):
     filename = os.path.basename(local_video_path)
 
     # Setup API client
-    jwplatform_client = jwplatform.client.JWPlatformClient(secret)
+    jwplatform_client = JWPlatformClient(secret)
     logging.info("Updating Video")
     try:
         response = jwplatform_client.Media.reupload(site_id=site_id, media_id=media_id, body={
