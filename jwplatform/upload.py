@@ -9,7 +9,6 @@ from urllib.parse import urlparse
 
 MAX_PAGE_SIZE = 1000
 MIN_PART_SIZE = 5 * 1024 * 1024
-UPLOAD_BASE_URL = 'upload.jwplayer.com'
 MAX_FILE_SIZE = 25 * 1000 * 1024 * 1024
 
 

@@ -17,7 +17,7 @@ def run_multipart_upload(site_id, video_file_path):
     Returns: None
 
     """
-    media_client_instance = JWPlatformClient().Media
+    media_client_instance = JWPlatformClient(JW_API_SECRET).Media
     upload_parameters = {
         'site_id': site_id,
         'target_part_size': 5 * 1024 * 1024,
@@ -40,7 +40,7 @@ def run_multipart_upload_with_auto_resume(site_id, video_file_path, retry_count)
         Returns: None
 
         """
-    media_client_instance = JWPlatformClient().Media
+    media_client_instance = JWPlatformClient(JW_API_SECRET).Media
     upload_parameters = {
         'site_id': site_id,
         'target_part_size': 5 * 1024 * 1024

@@ -10,7 +10,7 @@ from jwplatform.version import __version__
 from jwplatform.errors import APIError
 from jwplatform.response import APIResponse, ResourceResponse, ResourcesResponse
 from jwplatform.upload import MultipartUpload, SingleUpload, UploadType, MIN_PART_SIZE, MaxRetriesExceededError, \
-    UPLOAD_BASE_URL, UploadContext, MAX_FILE_SIZE
+    UploadContext, MAX_FILE_SIZE
 
 JWPLATFORM_API_HOST = 'api.jwplayer.com'
 JWPLATFORM_API_PORT = 443
@@ -526,7 +526,7 @@ class _MediaClient(_SiteResourceClient):
 
     def _get_upload_handler_for_upload_type(self, context: UploadContext, file, **kwargs):
         upload_method = context.upload_method
-        base_url = kwargs.get('base_url', UPLOAD_BASE_URL)
+        base_url = kwargs.get('base_url', JWPLATFORM_API_HOST)
         target_part_size = int(kwargs.get('target_part_size', MIN_PART_SIZE))
         retry_count = int(kwargs.get('retry_count', UPLOAD_RETRY_ATTEMPTS))
 
@@ -542,11 +542,11 @@ class _MediaClient(_SiteResourceClient):
 
 
 class _UploadClient(_ScopedClient):
-    _collection_path = "/v1/uploads/{resource_id}"
+    _collection_path = "/v2/uploads/{resource_id}"
 
     def __init__(self, api_secret, base_url):
         if base_url is None:
-            base_url = UPLOAD_BASE_URL
+            base_url = JWPLATFORM_API_HOST
         client = JWPlatformClient(secret=api_secret, host=base_url)
         super().__init__(client)
 

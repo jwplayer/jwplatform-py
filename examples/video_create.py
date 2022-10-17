@@ -6,6 +6,7 @@ import logging
 import sys
 
 import jwplatform
+from jwplatform.client import JWPlatformClient
 import requests
 
 logging.basicConfig(level=logging.INFO)
@@ -29,7 +30,7 @@ def create_video(secret, site_id, local_video_path, body=None):
     }
 
     # Setup API client
-    jwplatform_client = jwplatform.client.JWPlatformClient(secret)
+    jwplatform_client = JWPlatformClient(secret)
 
     # Make /videos/create API call
     logging.info("creating video")

@@ -1,6 +1,12 @@
 Changelog
 =========
 
+2.2.2 (2022-12-13)
+------------------
+
+* Fix an issue with v2 media uploads
+* Fix an issue with the v2 client import in some examples
+
 2.2.1 (2022-05-05)
 ------------------
 

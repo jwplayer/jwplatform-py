@@ -5,6 +5,7 @@ import logging
 import sys
 
 import jwplatform
+from jwplatform.client import JWPlatformClient
 
 
 logging.basicConfig(level=logging.INFO)
@@ -26,7 +27,7 @@ def update_custom_params(secret, site_id, media_id, params):
     :return: None
     """
     # Setup API client
-    jwplatform_client = jwplatform.client.JWPlatformClient(secret)
+    jwplatform_client = JWPlatformClient(secret)
     logging.info("Updating Video")
     try:
         response = jwplatform_client.Media.update(site_id=site_id, media_id=media_id, body={
